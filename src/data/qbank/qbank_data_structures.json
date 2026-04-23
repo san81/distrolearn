@@ -1,0 +1,236 @@
+{
+  "meta": {
+    "topic": "data_structures",
+    "source": "Classic CS + DDIA Chapter 3",
+    "generated": "2026-04-19",
+    "card_count": 8,
+    "puzzle_count": 3
+  },
+  "flashcards": [
+    {
+      "id": "ds-001",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "data_structures",
+      "subtopic": "trees",
+      "tags": [
+        "B-tree",
+        "balanced",
+        "disk",
+        "database-index"
+      ],
+      "front": "What is a B-tree and why is it used for database indexes rather than a binary BST?",
+      "back": "B-tree: a self-balancing m-way search tree where each node can have up to m children and m-1 keys. All leaf nodes are at the same depth (perfectly balanced). Why not BST for databases: (1) Disk I/O dominance: each node access = one disk read. BST nodes hold 1 key → O(log₂ n) disk reads for n records. B-tree nodes hold hundreds of keys → O(log_m n) disk reads. For 1 billion records: BST needs ~30 disk reads; B-tree (m=500) needs ~4. (2) Cache efficiency: B-tree nodes sized to match disk pages (4–16 KB) → reads are aligned to disk block boundaries. B+ tree variant (used in most DBs): all data stored in leaf nodes; internal nodes hold only keys for routing. Leaf nodes linked as a doubly-linked list → efficient range scans. Operations: search O(log n), insert O(log n), delete O(log n). Used by: PostgreSQL, MySQL InnoDB, SQLite, Oracle."
+    },
+    {
+      "id": "ds-002",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "data_structures",
+      "subtopic": "hash-tables",
+      "tags": [
+        "hash-table",
+        "collision",
+        "open-addressing",
+        "chaining"
+      ],
+      "front": "How do hash tables work? Compare open addressing vs. chaining for collision resolution.",
+      "back": "Hash table: maps keys to values via a hash function. hash(key) → index in an array. O(1) average-case for get/put/delete. Collision: two different keys hash to the same index. Resolution strategies: Chaining (separate chaining): each array slot holds a linked list of (key, value) pairs. Simple but memory-inefficient (pointer overhead). Worst case O(n) if all keys collide. Used by Java HashMap (with tree conversion at 8 entries per bucket — O(log n) worst case). Open addressing: on collision, probe for next empty slot. Probing strategies: Linear probing: check index+1, +2, ... → clustering problem (long runs of occupied slots). Quadratic probing: check index+1², +2², ... → reduces clustering. Double hashing: use second hash function for step size → better distribution. Clustering is the enemy: when load factor is high (>0.7), collisions chain, performance degrades. Resize (rehash) when load factor exceeds threshold. Java HashMap resizes at 0.75. Robin Hood hashing: displace entries that are 'closer to home' with entries that are 'farther from home' → more uniform probe lengths."
+    },
+    {
+      "id": "ds-003",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "data_structures",
+      "subtopic": "heaps",
+      "tags": [
+        "heap",
+        "priority-queue",
+        "min-heap",
+        "max-heap",
+        "heapify"
+      ],
+      "front": "How does a binary heap work? How is it used to implement a priority queue?",
+      "back": "Binary heap: a complete binary tree where every node satisfies the heap property. Min-heap: parent ≤ children (root = minimum). Max-heap: parent ≥ children (root = maximum). Stored as an array: node at index i has children at 2i+1 and 2i+2, parent at ⌊(i-1)/2⌋. No pointers needed — implicit structure. Operations: peek (find min/max): O(1) — root of array. insert: append to end, sift up (swap with parent while heap property violated). O(log n). extract-min/max: replace root with last element, remove last, sift down. O(log n). build heap (heapify): given n elements, build heap in O(n) — not O(n log n). Heapsort: build heap O(n), extract max n times O(n log n) = O(n log n) total, O(1) space. Priority queue: min-heap where highest-priority item dequeued first. Used in: Dijkstra's algorithm, A*, Huffman coding, task schedulers, OS process scheduling, event-driven simulations. Java PriorityQueue: min-heap. To get max-heap: PriorityQueue with reversed comparator."
+    },
+    {
+      "id": "ds-004",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "data_structures",
+      "subtopic": "graphs",
+      "tags": [
+        "BFS",
+        "DFS",
+        "shortest-path",
+        "topological-sort"
+      ],
+      "front": "Compare BFS and DFS. When is each appropriate? What are their key applications?",
+      "back": "BFS (Breadth-First Search): explores level by level using a queue. Visits all nodes at distance d before distance d+1. Time: O(V+E), Space: O(V) for the queue. Key applications: (1) Shortest path in unweighted graph — BFS from source; first time a node is reached, that's the shortest path. (2) Connected components in undirected graph. (3) Bipartite graph check. (4) Web crawlers (level-order exploration). DFS (Depth-First Search): explores as deep as possible before backtracking. Uses a stack (or recursion). Time: O(V+E), Space: O(V) for recursion stack (can be O(h) where h=height). Key applications: (1) Topological sort (DAGs) — DFS finish order reversed = topological order. (2) Cycle detection in directed graph. (3) Strongly connected components (Kosaraju's/Tarjan's). (4) Maze solving. (5) Tree traversal (preorder/inorder/postorder). Choose BFS when: finding shortest paths, exploring nearby nodes first. Choose DFS when: exploring all paths, detecting cycles, topological ordering. Memory: BFS can use O(V) memory for wide graphs; DFS uses O(height) — better for tall/narrow graphs. Dijkstra (weighted shortest path): BFS with a priority queue instead of a regular queue."
+    },
+    {
+      "id": "ds-005",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "data_structures",
+      "subtopic": "lru-cache",
+      "tags": [
+        "LRU",
+        "LFU",
+        "cache-eviction",
+        "HashMap",
+        "LinkedList"
+      ],
+      "front": "How do you implement an O(1) LRU cache? What data structures does it require?",
+      "back": "LRU (Least Recently Used) cache: evicts the item that was least recently accessed when the cache is full. O(1) get and put required. Data structures: HashMap + Doubly Linked List. HashMap: key → node pointer. O(1) lookup by key. Doubly linked list: nodes ordered by recency (most recent at head, least recent at tail). O(1) move-to-front and remove-from-tail (doubly linked for O(1) delete given pointer). Operations: get(key): if key in map → move node to head → return value. If not → return -1. put(key, value): if key in map → update value, move to head. If not → create new node at head, add to map. If at capacity → remove tail node, remove from map. All O(1) due to: HashMap for O(1) key lookup (get the node pointer directly); doubly linked list for O(1) insertion/deletion given a pointer (no traversal needed). Java: LinkedHashMap with access order = true provides LRU semantics out of the box. LFU (Least Frequently Used): evicts the item with the lowest access count. More complex: requires a frequency map + per-frequency doubly linked list + tracking minimum frequency. O(1) achievable with this structure."
+    },
+    {
+      "id": "ds-006",
+      "level": "L3",
+      "type": "flashcard",
+      "topic": "data_structures",
+      "subtopic": "bloom-filters",
+      "tags": [
+        "bloom-filter",
+        "probabilistic",
+        "false-positive",
+        "space-efficient"
+      ],
+      "front": "What is a Bloom filter, when would you use it, and what is its trade-off?",
+      "back": "Bloom filter: a space-efficient probabilistic data structure that answers 'is element X in the set?' It can say: 'Definitely NOT in set' (no false negatives) or 'Probably in set' (possible false positives). Structure: a bit array of m bits + k independent hash functions. Add(x): hash x with all k functions → set k bits to 1. Query(x): hash x with all k functions → if any bit is 0, x is definitely not in set; if all bits are 1, x is probably in set. False positive rate: depends on m (bits), n (elements), k (hash functions). Tunable — more bits → lower false positive rate. No deletion (setting bits to 0 could affect other elements). Use cases: (1) Database query optimization: before reading disk, check if key might exist. Avoids expensive disk reads for non-existent keys (Cassandra, RocksDB, BigTable). (2) Web cache: 'have I seen this URL before?' (web crawlers). (3) Spam filters: 'is this email address known spam?'. (4) Akamai CDN: avoid caching one-hit-wonder URLs. Rule of thumb: ~10 bits per element achieves ~1% false positive rate. Cuckoo filter: an alternative that supports deletion with better lookup performance."
+    },
+    {
+      "id": "ds-007",
+      "level": "L3",
+      "type": "flashcard",
+      "topic": "data_structures",
+      "subtopic": "skip-lists",
+      "tags": [
+        "skip-list",
+        "probabilistic",
+        "ordered-map",
+        "concurrent"
+      ],
+      "front": "What is a skip list, and why is it used in some databases instead of a balanced BST?",
+      "back": "Skip list: a probabilistic data structure providing O(log n) average search, insert, and delete on a sorted linked list, without complex rotations. Structure: multiple levels of linked lists. Bottom level = complete sorted list. Each higher level = subset of elements from level below (promoted with probability p = 0.5 usually). Search: start at highest level, move right while next key ≤ target, drop down a level, repeat. Average O(log n) — acts like binary search on a linked list. Why skip lists over balanced BSTs (AVL, Red-Black): (1) Simpler implementation — no rotations or rebalancing code. (2) Better concurrent performance — fine-grained locking per node rather than tree-wide rebalancing lock. (3) Range scans: just traverse bottom linked list — O(k) for k results after O(log n) search. Used in: Redis (sorted sets are skip lists), Apache Cassandra (memtable), MemSQL, LevelDB memtable. ConcurrentSkipListMap in Java: lock-free skip list for concurrent sorted map. O(log n) with better concurrency than ConcurrentHashMap for ordered access."
+    },
+    {
+      "id": "ds-008",
+      "level": "L4",
+      "type": "flashcard",
+      "topic": "data_structures",
+      "subtopic": "trees",
+      "tags": [
+        "red-black-tree",
+        "AVL-tree",
+        "self-balancing",
+        "rotation"
+      ],
+      "front": "Compare AVL trees and Red-Black trees. When does each perform better?",
+      "back": "Both are self-balancing BSTs maintaining O(log n) operations. AVL tree: strictly balanced — height difference between left/right subtrees ≤ 1 for every node. Rotations: single or double rotation to restore balance. More rotations on insert/delete. Balanced factor stored per node. Red-Black tree: loosely balanced — no path from root to leaf is more than 2x longer than any other. 5 properties: (1) every node is red or black, (2) root is black, (3) leaves (null) are black, (4) red node has black children, (5) all paths from node to descendant leaves have same number of black nodes. Fewer rotations on insert/delete (at most 2 rotations). Performance comparison: AVL: faster lookups (shorter height, more balanced). Better for read-heavy workloads. Red-Black: faster inserts and deletes (fewer rotations). Better for write-heavy workloads. In practice: Red-Black used in: Java TreeMap, TreeSet; C++ std::map, std::set; Linux kernel's virtual memory areas. AVL used in: database indexes where lookup speed matters most. Both O(log n) for all operations; the constant factor differs."
+    }
+  ],
+  "puzzles": [
+    {
+      "id": "ds-puz-001",
+      "type": "pattern_matching",
+      "topic": "data_structures",
+      "subtopic": "complexity",
+      "difficulty": "intermediate",
+      "xp": 40,
+      "title": "Match Data Structure to Time Complexity",
+      "instructions": "Match each operation to its average-case time complexity.",
+      "pairs": [
+        {
+          "left": "Hash table get(key)",
+          "right": "O(1)"
+        },
+        {
+          "left": "Binary heap insert",
+          "right": "O(log n)"
+        },
+        {
+          "left": "B-tree search (m-way)",
+          "right": "O(log_m n) = O(log n / log m)"
+        },
+        {
+          "left": "Skip list search",
+          "right": "O(log n) average"
+        },
+        {
+          "left": "Bloom filter query",
+          "right": "O(k) where k = number of hash functions — effectively O(1)"
+        }
+      ],
+      "hint": "Hash = O(1) magic; heaps/skip lists/B-trees = O(log n); bloom filters are always fixed O(k).",
+      "explanation": "Hash tables sacrifice ordering for O(1). Sorted/balanced structures (heaps, B-trees, skip lists) give O(log n). Bloom filters are always O(k) regardless of set size."
+    },
+    {
+      "id": "ds-puz-002",
+      "type": "sequence_ordering",
+      "topic": "data_structures",
+      "subtopic": "lru-cache",
+      "difficulty": "intermediate",
+      "xp": 55,
+      "title": "LRU Cache Operations",
+      "instructions": "An LRU cache with capacity 3 starts empty. Trace the operations in order.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "put(1,A) → Cache: [1:A]. HashMap: {1→node1}. List: 1"
+        },
+        {
+          "id": 1,
+          "text": "put(2,B) → Cache: [2:B, 1:A]. List head: 2, tail: 1"
+        },
+        {
+          "id": 2,
+          "text": "put(3,C) → Cache: [3:C, 2:B, 1:A]. Cache full."
+        },
+        {
+          "id": 3,
+          "text": "get(1) → Move node1 to head. List: [1:A, 3:C, 2:B]"
+        },
+        {
+          "id": 4,
+          "text": "put(4,D) → Cache full! Evict LRU tail (2:B). Add 4:D at head."
+        },
+        {
+          "id": 5,
+          "text": "Final state: List: [4:D, 1:A, 3:C]. Key 2 is evicted."
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "hint": "get() counts as an access — it moves the node to the most-recently-used position (head).",
+      "explanation": "After get(1), key 1 moves to head. When put(4) arrives and cache is full, the LRU item is tail=2. That's why key 2 is evicted, not key 3 or key 1."
+    },
+    {
+      "id": "ds-puz-003",
+      "type": "fill_in_blank",
+      "topic": "data_structures",
+      "subtopic": "bloom-filters",
+      "difficulty": "advanced",
+      "xp": 50,
+      "title": "Bloom Filter False Positive Logic",
+      "question": "A Bloom filter uses {{k}} hash functions and a bit array of {{m}} bits. When adding element X, we set k bits to 1. When querying Y, if ANY bit position is {{zero}}, Y is {{definitely_not}} in the set. If ALL bits are 1, Y is {{probably}} in the set. Bloom filters have no {{false_negative}} (a set element will always test positive) but can have {{false_positive}}.",
+      "blanks": {
+        "k": "k",
+        "m": "m",
+        "zero": "0",
+        "definitely_not": "definitely NOT",
+        "probably": "probably (but not certainly)",
+        "false_negative": "false negatives",
+        "false_positive": "false positives"
+      },
+      "hint": "Bloom filters are one-directional: certainty about absence, probability about presence.",
+      "explanation": "Bit = 0 is definitive proof of absence. Bit = 1 for all k positions is probabilistic — another element may have set those same bits. This is why Bloom filters are perfect for 'definitely not' queries."
+    }
+  ]
+}

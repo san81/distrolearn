@@ -1,0 +1,181 @@
+{
+  "meta": {
+    "topic": "stream_processing",
+    "source": "DDIA Chapter 11",
+    "generated": "2026-04-19",
+    "card_count": 6,
+    "puzzle_count": 2
+  },
+  "flashcards": [
+    {
+      "id": "str-001",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "stream_processing",
+      "subtopic": "basics",
+      "tags": [
+        "event",
+        "producer",
+        "consumer",
+        "topic"
+      ],
+      "front": "What is a stream processing event, and how does stream processing differ from batch processing?",
+      "back": "An event is a small, self-contained, immutable object describing something that happened at a point in time (user action, sensor reading, database write). Unlike batch processing (runs on bounded input files periodically), stream processing handles unbounded, continuously arriving events in real time. Key difference: batch = read input file, produce output file, repeat; stream = react to events as they arrive, produce continuous output. In streaming: events are produced by a producer/publisher, grouped into topics/streams, consumed by multiple consumers/subscribers. Low-latency: instead of polling (expensive), consumers are notified when new events appear."
+    },
+    {
+      "id": "str-002",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "stream_processing",
+      "subtopic": "messaging",
+      "tags": [
+        "message-broker",
+        "AMQP",
+        "JMS",
+        "queue",
+        "backpressure"
+      ],
+      "front": "What is a message broker, and how does it differ from a database?",
+      "back": "A message broker (message queue) is a server-based intermediary: producers write messages to it, consumers receive messages from it. Brokers tolerate clients going offline — durability moves to the broker. Key differences from databases: (1) Brokers auto-delete messages after delivery — not meant for permanent storage; databases keep data until explicitly deleted. (2) Brokers assume small working set — slow consumers can cause performance degradation as queues grow; databases handle large datasets natively. (3) Brokers notify clients when new data arrives; databases return point-in-time snapshots. (4) Brokers support topic subscriptions; databases support secondary indexes and arbitrary queries. Multiple consumer patterns: Load balancing — each message to one consumer (share processing work); Fan-out — each message to all consumers (multiple independent views of same data). Implemented by: RabbitMQ, ActiveMQ, IBM MQ, Azure Service Bus (AMQP/JMS protocol)."
+    },
+    {
+      "id": "str-003",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "stream_processing",
+      "subtopic": "kafka",
+      "tags": [
+        "Kafka",
+        "log-based",
+        "offset",
+        "partition",
+        "replay"
+      ],
+      "front": "How does Kafka's log-based message broker work? How does it differ from traditional AMQP brokers?",
+      "back": "Kafka architecture: log-based append-only storage. Topics are partitioned; each partition is an append-only log on disk. Messages get a monotonically increasing offset per partition. Producers append to end; consumers read sequentially from their last offset. Consumer groups: each partition assigned to one consumer in a group — partition is the unit of parallelism (max consumers = num partitions). Key differences from AMQP: (1) Messages not deleted after consumption — consumers track their own offset. A slow consumer doesn't disrupt others. (2) Replay: rewind offset to reprocess past events — impossible in AMQP (ack deletes message). (3) Log is durably persisted to disk — message throughput stays constant regardless of queue depth (vs AMQP which slows down when spilling to disk). (4) Fan-out free — multiple consumer groups each get all messages independently. (5) Ordering guaranteed within a partition; no cross-partition ordering. Kafka throughput: millions of messages/sec via partitioning across machines. Log retention: disk-bounded circular buffer — typically days to weeks of history. Used in: LinkedIn (origin), Uber, Netflix, Confluent."
+    },
+    {
+      "id": "str-004",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "stream_processing",
+      "subtopic": "CDC",
+      "tags": [
+        "CDC",
+        "change-data-capture",
+        "event-sourcing",
+        "derived-data"
+      ],
+      "front": "What is Change Data Capture (CDC) and how does it differ from Event Sourcing?",
+      "back": "Change Data Capture (CDC): extracting changes from a database's replication log and streaming them to other systems (search indexes, caches, data warehouses) to keep them in sync. The database is the system of record; CDC makes its changes available as a stream. Implementation: parse MySQL binlog, PostgreSQL logical replication, Debezium, Kafka Connect. Benefit: avoids dual-write bugs (writing to DB + cache atomically) — instead derive the cache from the DB change stream. Event Sourcing: application stores all state changes as an immutable log of events (events are first-class, the application explicitly appends them). Current state is derived by replaying events. CDC is retrofitted (extract changes from DB); Event Sourcing is designed-in (events are the source of truth). Shared idea (log as truth): both treat the log as the authoritative record. State is derived from the log, not the other way around. Analogy: accounting ledger (append debits/credits) → account balance (derived). Git (commits = events) → working tree (derived state)."
+    },
+    {
+      "id": "str-005",
+      "level": "L3",
+      "type": "flashcard",
+      "topic": "stream_processing",
+      "subtopic": "stream-joins",
+      "tags": [
+        "stream-join",
+        "windowing",
+        "watermark",
+        "late-data"
+      ],
+      "front": "What are the three types of stream joins? What is the challenge of time in stream processing (event time vs processing time)?",
+      "back": "Three stream join types: (1) Stream-stream join (windowed): join events from two streams that occurred within the same time window. Example: correlate search queries with ad clicks within 1 hour. Both streams must be buffered in state for the window duration. (2) Stream-table join (stream enrichment): enrich a stream event with data from a slowly-changing database table. Load table into operator state; look up on each event. (3) Table-table join (materialized view maintenance): both inputs are change streams from databases; maintain a materialized join view that updates as either table changes. Time challenge — event time vs processing time: Event time: when the event actually occurred (timestamp in the event). Processing time: when the event was processed by the stream processor. They diverge due to: network delays, device clock skew, offline devices sending batched events later. Solution: watermarks — a heuristic assertion that all events with timestamp < T have been received. Allows closing windows and emitting results. Late events after watermark: either drop them, update results (requires downstream to handle corrections), or use a long enough window to absorb expected delays."
+    },
+    {
+      "id": "str-006",
+      "level": "L4",
+      "type": "flashcard",
+      "topic": "stream_processing",
+      "subtopic": "fault-tolerance",
+      "tags": [
+        "exactly-once",
+        "at-least-once",
+        "idempotency",
+        "micro-batching"
+      ],
+      "front": "How do stream processors achieve fault tolerance and exactly-once semantics?",
+      "back": "Challenge: stream processing must tolerate failures without losing or duplicating events. Delivery guarantees: At-most-once: process and move on; if failure, lost (lowest overhead). At-least-once: retry on failure — events may be processed multiple times. Exactly-once: hardest — every event processed exactly once even under failures. Achieving exactly-once: (1) Idempotent operations: design processing so re-applying an event produces the same result (no harm from re-execution). Example: SET balance = 100 is idempotent; ADD 10 to balance is not. (2) Atomic commit: commit processed output AND consumer offset atomically (Kafka transactions). If output commits but offset doesn't → reprocess → but if idempotent, no harm. (3) Micro-batching (Spark Streaming): break stream into small batches (e.g., 1-second intervals), process as batch jobs with batch fault-tolerance guarantees. Exactly-once per micro-batch; latency = batch size. (4) Checkpointing (Apache Flink): periodically snapshot all operator state to durable storage. On failure: restart from last checkpoint, replay events since checkpoint offset. Flink achieves true exactly-once with Chandy-Lamport distributed snapshots. Trade-off: higher exactly-once overhead vs. lower at-least-once overhead. For most analytics (counting, averaging), at-least-once + idempotent aggregations is sufficient. For financial operations, exactly-once is required."
+    }
+  ],
+  "puzzles": [
+    {
+      "id": "str-puz-001",
+      "type": "pattern_matching",
+      "topic": "stream_processing",
+      "subtopic": "kafka",
+      "difficulty": "intermediate",
+      "xp": 45,
+      "title": "Log-Based vs Traditional Broker Properties",
+      "instructions": "Match each property to: Log-based broker (Kafka), Traditional broker (RabbitMQ/AMQP), or Both.",
+      "pairs": [
+        {
+          "left": "Messages deleted after consumer acknowledges them",
+          "right": "Traditional (AMQP) — acknowledgment is destructive"
+        },
+        {
+          "left": "Consumers can replay events by rewinding their offset",
+          "right": "Log-based (Kafka) — offset is consumer-controlled, log is immutable"
+        },
+        {
+          "left": "Multiple consumer groups each receive all messages independently",
+          "right": "Log-based (Kafka) — each group reads independently without affecting others"
+        },
+        {
+          "left": "Producer writes, consumer reads, broker decouples them",
+          "right": "Both — this is the fundamental broker model"
+        }
+      ],
+      "hint": "The key Kafka insight: consuming is read-only. The key AMQP insight: consuming is destructive.",
+      "explanation": "Kafka's append-only log enables replay and independent consumer groups. AMQP's ack-and-delete model is simpler for task queues but prevents replay and slows under load."
+    },
+    {
+      "id": "str-puz-002",
+      "type": "sequence_ordering",
+      "topic": "stream_processing",
+      "subtopic": "CDC",
+      "difficulty": "intermediate",
+      "xp": 50,
+      "title": "Change Data Capture Pipeline",
+      "instructions": "Arrange the components of a CDC pipeline that keeps a search index in sync with a PostgreSQL database.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "Application writes an order to PostgreSQL (system of record)"
+        },
+        {
+          "id": 1,
+          "text": "PostgreSQL records the write in its logical replication log (WAL)"
+        },
+        {
+          "id": 2,
+          "text": "Debezium reads the WAL and publishes change events to a Kafka topic"
+        },
+        {
+          "id": 3,
+          "text": "Elasticsearch consumer reads from the Kafka topic"
+        },
+        {
+          "id": 4,
+          "text": "Consumer updates the Elasticsearch index with the new order data"
+        },
+        {
+          "id": 5,
+          "text": "Users can now search for the order in Elasticsearch (with small lag)"
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "hint": "The WAL is the source; Kafka is the transport; the consumer drives the derived system.",
+      "explanation": "CDC pipelines: DB → WAL → CDC tool (Debezium) → Kafka → downstream consumers. This avoids dual-write bugs — the Kafka stream is derived from the single authoritative DB write."
+    }
+  ]
+}

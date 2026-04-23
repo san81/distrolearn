@@ -1,0 +1,77 @@
+{
+  "version": "1.1",
+  "generated": "2026-04-19",
+  "source": "Designing Data-Intensive Applications \u2014 Martin Kleppmann + Classic CS",
+  "totals": {
+    "flashcards": 65,
+    "puzzles": 30
+  },
+  "card_types": {
+    "L1": 19,
+    "L2": 21,
+    "L3": 13,
+    "L4": 8,
+    "L5": 4
+  },
+  "puzzle_types": {
+    "sequence_ordering": 13,
+    "pattern_matching": 11,
+    "fill_in_blank": 6
+  },
+  "topics": [
+    {
+      "topic": "replication",
+      "file": "qbank_replication.json",
+      "card_count": 16,
+      "puzzle_count": 5
+    },
+    {
+      "topic": "partitioning",
+      "file": "qbank_partitioning.json",
+      "card_count": 8,
+      "puzzle_count": 4
+    },
+    {
+      "topic": "consensus",
+      "file": "qbank_consensus.json",
+      "card_count": 9,
+      "puzzle_count": 6
+    },
+    {
+      "topic": "transactions",
+      "file": "qbank_transactions.json",
+      "card_count": 6,
+      "puzzle_count": 3
+    },
+    {
+      "topic": "storage_engines",
+      "file": "qbank_storage_engines.json",
+      "card_count": 5,
+      "puzzle_count": 3
+    },
+    {
+      "topic": "distributed_systems_faults",
+      "file": "qbank_distributed_faults.json",
+      "card_count": 4,
+      "puzzle_count": 3
+    },
+    {
+      "topic": "stream_processing",
+      "file": "qbank_stream_processing.json",
+      "card_count": 6,
+      "puzzle_count": 2
+    },
+    {
+      "topic": "batch_processing",
+      "file": "qbank_batch_processing.json",
+      "card_count": 3,
+      "puzzle_count": 1
+    },
+    {
+      "topic": "data_structures",
+      "file": "qbank_data_structures.json",
+      "card_count": 8,
+      "puzzle_count": 3
+    }
+  ]
+}

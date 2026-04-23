@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "distrolearn",
+    "name": "DistroLearn",
     "slug": "distrolearn",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,21 +10,71 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#070912"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.raft.distrolearn",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#060C1E"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.raft.distrolearn"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#6B9FFF",
+          "sounds": []
+        }
+      ],
+      "expo-secure-store",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosClientId": "560353032383-lpd1t1apjpth19o2vbu9klh4tq53486a.apps.googleusercontent.com",
+          "iosUrlScheme": "com.googleusercontent.apps.560353032383-lpd1t1apjpth19o2vbu9klh4tq53486a",
+          "webClientId": "560353032383-1jn6dtg9lmgqrnegbn3oncqmbmdgmac4.apps.googleusercontent.com"
+        }
+      ],
+      [
+        "@sentry/react-native",
+        {
+          "organization": "raft-b2",
+          "project": "distrolearn"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "gradleProperties": {
+              "org.gradle.jvmargs": "-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError",
+              "org.gradle.daemon": "true",
+              "org.gradle.parallel": "true",
+              "org.gradle.configureondemand": "true"
+            }
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d73e288e-84e6-4bad-b9c8-0babd8dee814"
+      }
     }
   }
 }

@@ -1,0 +1,345 @@
+{
+  "meta": {
+    "topic": "consensus",
+    "source": "DDIA Chapter 9",
+    "generated": "2026-04-19",
+    "card_count": 9,
+    "puzzle_count": 6
+  },
+  "flashcards": [
+    {
+      "id": "con-001",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "consensus",
+      "subtopic": "definition",
+      "tags": [
+        "consensus",
+        "agreement",
+        "termination",
+        "safety-liveness"
+      ],
+      "front": "What is the distributed consensus problem? What four properties must a consensus algorithm satisfy?",
+      "back": "Consensus: getting multiple nodes to agree on a single value, even when some nodes may fail. Formalized as: nodes propose values; the algorithm decides on one. Four properties: (1) Uniform agreement: no two nodes decide differently. (2) Integrity: no node decides twice. (3) Validity: the decided value was actually proposed by some node (no fabricated values). (4) Termination: every non-crashed node eventually decides (liveness \u2014 ensures the system makes progress). Agreement + integrity = safety: everyone agrees on the same valid outcome. Termination = liveness: the system doesn't get stuck forever. Trade-off: if all nodes crash, no algorithm can decide; at least a majority must be functioning for termination to be achievable."
+    },
+    {
+      "id": "con-002",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "consensus",
+      "subtopic": "2PC",
+      "tags": [
+        "2PC",
+        "two-phase-commit",
+        "atomic-commit"
+      ],
+      "front": "How does Two-Phase Commit (2PC) work? What is its fundamental limitation?",
+      "back": "2PC guarantees atomic commit across multiple nodes (all commit or all abort). Phases: Phase 1 \u2014 Prepare: coordinator sends 'prepare' to all participants; each participant checks if it can commit and responds yes/no, then logs its promise. Phase 2 \u2014 Commit/Abort: if all say yes, coordinator logs 'commit' decision, then sends commit to all. If any say no, coordinator sends abort. Key property: a participant that votes 'yes' in Phase 1 cannot unilaterally abort \u2014 it must wait for coordinator's Phase 2 decision. Fundamental limitation: 2PC is a blocking protocol. If the coordinator crashes after participants vote 'yes' but before Phase 2, participants are stuck 'in doubt' \u2014 they cannot commit or abort, and they hold locks indefinitely. Recovery requires the coordinator to come back and replay its log. This makes 2PC a single point of failure at the coordinator level."
+    },
+    {
+      "id": "con-003",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "consensus",
+      "subtopic": "linearizability",
+      "tags": [
+        "linearizability",
+        "consistency",
+        "total-order"
+      ],
+      "front": "What is linearizability? How does it differ from serializability?",
+      "back": "Linearizability (also called atomic consistency or strong consistency): a guarantee that the system behaves as if there is only a single copy of data, and all operations happen atomically at a specific point in time. Reads always return the most recently written value; concurrent operations appear to happen in some sequential order consistent with real time. Analogy: a linearizable system looks like a single-threaded single-machine database. Serializability (transactions): a guarantee that concurrent transactions execute in some serial order \u2014 but that order need not be consistent with real time (a transaction starting before another can be serialized after it). Difference: linearizability applies to individual read/write operations and concerns real-time ordering. Serializability applies to multi-operation transactions and concerns isolation from concurrent transactions. They are orthogonal \u2014 a database can provide neither, one, or both (the combination is called strict serializability or strong one-copy serializability)."
+    },
+    {
+      "id": "con-004",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "consensus",
+      "subtopic": "raft",
+      "tags": [
+        "raft",
+        "leader-election",
+        "epoch",
+        "quorum"
+      ],
+      "front": "How does Raft achieve fault-tolerant consensus? Describe epoch numbers and the two-round voting process.",
+      "back": "Raft and similar algorithms (Viewstamped Replication, Zab) implement total order broadcast (equivalent to repeated consensus). Key insight: leaders are used internally, but no single leader is guaranteed unique \u2014 multiple leader candidates can exist momentarily. Epoch numbers (called term in Raft, ballot in Paxos, view in VR): monotonically increasing integer assigned to each leadership period. Guarantees: within each epoch, the leader is unique; if two leaders from different epochs conflict, higher epoch wins. Two-round voting: Round 1 (leader election): candidates collect votes from a quorum (majority). A node votes only if the candidate has a higher epoch than anything it has seen. Round 2 (proposal): leader collects a quorum of votes for its proposed value. Critical overlap: the quorums for both rounds must overlap by at least one node. This ensures that if a proposal's quorum doesn't reveal a higher epoch, no newer leader election has occurred \u2014 the current leader can safely decide. Contrast with 2PC: 2PC coordinator is not elected (SPOF); consensus algorithms need only a majority, not all nodes."
+    },
+    {
+      "id": "con-005",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "consensus",
+      "subtopic": "total-order-broadcast",
+      "tags": [
+        "total-order-broadcast",
+        "consensus",
+        "replication"
+      ],
+      "front": "What is total order broadcast, and how is it equivalent to consensus?",
+      "back": "Total order broadcast (atomic broadcast): a protocol requiring that messages be delivered exactly once, to all nodes, in the same order. Properties: (1) Reliable delivery: no message is lost \u2014 if delivered to one node, delivered to all. (2) Total ordering: all nodes receive messages in the same order. Equivalence to consensus: Total order broadcast is equivalent to repeatedly running consensus \u2014 each 'round' of consensus decides the next message in the total order. Conversely, given total order broadcast, you can implement consensus: propose a value by broadcasting it; the first value in the total order is the consensus decision. Connection to replication: single-leader replication is essentially total order broadcast \u2014 leader decides order of writes; followers apply in same order. ZooKeeper and etcd implement total order broadcast (using Zab and Raft respectively) and expose it as linearizable operations (compare-and-set, leader election, distributed locks)."
+    },
+    {
+      "id": "con-006",
+      "level": "L3",
+      "type": "flashcard",
+      "topic": "consensus",
+      "subtopic": "2PC",
+      "tags": [
+        "2PC",
+        "performance",
+        "blocking",
+        "XA"
+      ],
+      "front": "2PC is 'over 10x slower than single-node transactions' in MySQL. Why? And what happens when the coordinator crashes mid-protocol?",
+      "back": "Performance cost of 2PC: (1) Extra network round trips: Phase 1 (coordinator \u2192 all participants \u2192 coordinator) + Phase 2 (coordinator \u2192 all participants), vs. single-node's local commit. (2) Disk fsync per phase: each participant must fsync its vote (Phase 1) and its commit record (Phase 2) to survive crashes \u2014 disk I/O is the main cost. (3) Lock holding: participants hold row-level locks throughout the protocol \u2014 from Phase 1 vote until Phase 2 commit. Coordinator crash: if coordinator crashes after Phase 1 votes but before Phase 2 decision, participants are 'in doubt.' They cannot decide \u2014 they don't know if the coordinator committed or aborted. They must HOLD LOCKS until coordinator recovers. If coordinator recovery takes 20 minutes, locks are held 20 minutes. If coordinator log is corrupted, locks may be held FOREVER until administrator manually intervenes. This is why 2PC is called a blocking atomic commit protocol. XA transactions (heterogeneous distributed transactions): use the standard XA C API; the coordinator is embedded in the application process (makes coordinator a SPOF if app crashes); orphaned in-doubt transactions are a known operational hazard."
+    },
+    {
+      "id": "con-007",
+      "level": "L3",
+      "type": "flashcard",
+      "topic": "consensus",
+      "subtopic": "zookeeper",
+      "tags": [
+        "ZooKeeper",
+        "etcd",
+        "coordination",
+        "leader-election"
+      ],
+      "front": "ZooKeeper and etcd implement consensus \u2014 but application developers rarely use them directly. What do they provide and how are they used?",
+      "back": "ZooKeeper/etcd are coordination services, not general-purpose databases. They hold small amounts of data (fits in memory, persisted to disk) replicated via total order broadcast (Zab for ZooKeeper, Raft for etcd). Services provided: (1) Linearizable atomic operations: compare-and-set (CAS) \u2014 atomically writes a value only if it currently matches expected value. Used for leader election (first to CAS 'leader' node wins). (2) Operations ordering + epochs: monotonically increasing transaction IDs (zxid in ZK, revision in etcd) serve as fencing tokens \u2014 any request with an older token is rejected, preventing split-brain writes. (3) Failure detection: sessions with heartbeats; ZooKeeper marks a node as failed if its session expires \u2014 triggers ephemeral node deletion, notifying other nodes. (4) Change notifications: clients subscribe to znodes; get notified of leader changes without constant polling. Used indirectly by: HBase, Hadoop YARN, Kafka, Kubernetes (etcd), OpenStack Nova. Application developers typically use ZK/etcd through higher-level abstractions like Curator (ZooKeeper client library) rather than raw ZK API."
+    },
+    {
+      "id": "con-008",
+      "level": "L4",
+      "type": "flashcard",
+      "topic": "consensus",
+      "subtopic": "consensus-limitations",
+      "tags": [
+        "consensus",
+        "limitations",
+        "network",
+        "performance"
+      ],
+      "front": "What are the key limitations of consensus algorithms that prevent them from being used everywhere?",
+      "back": "Despite providing strong guarantees, consensus algorithms have costs: (1) Performance: voting on proposals before decisions = synchronous replication overhead. Each round trip adds latency. Many databases use asynchronous replication (accepting data loss risk) for better throughput. (2) Strict majority required: to tolerate f failures you need 2f+1 nodes. A network partition leaves the minority partition completely blocked (cannot make progress). (3) Static membership: most consensus algorithms assume a fixed set of voting nodes. Dynamic membership (adding/removing nodes) requires separate complex protocols. (4) Timeout-based failure detection: in variable-latency networks (especially geo-distributed), nodes falsely declare leaders dead due to transient delays \u2014 causing unnecessary elections that degrade performance. (5) Network sensitivity: Raft can get into situations where leadership bounces between two nodes if one network link is consistently unreliable \u2014 system makes no progress. Rule of thumb: use consensus for leader election, distributed locks, and configuration management (small amounts of critical coordination data). Don't use ZooKeeper/etcd as your primary database."
+    },
+    {
+      "id": "con-009",
+      "level": "L5",
+      "type": "flashcard",
+      "topic": "consensus",
+      "subtopic": "2PC-vs-consensus",
+      "tags": [
+        "2PC",
+        "consensus",
+        "comparison",
+        "FLP"
+      ],
+      "front": "2PC requires unanimous agreement; Raft only requires a majority. Why does 2PC exist as a protocol if it is strictly weaker than consensus (it can block indefinitely)? When is 2PC appropriate?",
+      "back": "Why 2PC is weaker but still used: 2PC solves a different problem than consensus \u2014 atomic commit across heterogeneous systems (different databases, message brokers). Consensus algorithms (Raft, Paxos) assume all nodes run the same software and protocol. XA/2PC is a general interface that any database can implement. The blocking behavior is a known trade-off \u2014 accepted for cross-system atomicity that would be impossible to achieve otherwise. FLP impossibility: Fischer, Lynch, Patterson (1985) proved that in an asynchronous system, no deterministic consensus algorithm can guarantee both safety and liveness in the presence of even one crashed node. Consensus algorithms like Raft get around this by using timeouts (randomized election timeouts), which are technically unsafe but work in practice. 2PC avoids this problem by blocking rather than violating safety \u2014 it never makes an incorrect decision; it just might get stuck. When 2PC is appropriate: cross-database atomic operations (e.g., write to PostgreSQL AND send Kafka message atomically); heterogeneous systems where all parties cannot share a consensus protocol; XA transactions for enterprise middleware. When NOT: don't use 2PC within a single distributed database that already has internal consensus \u2014 use the DB's internal transaction mechanism instead."
+    }
+  ],
+  "puzzles": [
+    {
+      "id": "con-puz-001",
+      "type": "sequence_ordering",
+      "topic": "consensus",
+      "subtopic": "2PC",
+      "difficulty": "intermediate",
+      "xp": 55,
+      "title": "Two-Phase Commit \u2014 Happy Path",
+      "instructions": "Arrange the steps of a successful 2PC transaction in the correct order.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "Application begins transaction and performs operations on multiple participants"
+        },
+        {
+          "id": 1,
+          "text": "Application calls commit \u2014 coordinator generates unique transaction ID"
+        },
+        {
+          "id": 2,
+          "text": "Coordinator sends Prepare(txn_id) to all participants"
+        },
+        {
+          "id": 3,
+          "text": "Each participant checks if it can commit, acquires locks, fsyncs redo log, responds Yes"
+        },
+        {
+          "id": 4,
+          "text": "Coordinator receives Yes from all; writes 'commit' decision to its own log (the commit point)"
+        },
+        {
+          "id": 5,
+          "text": "Coordinator sends Commit(txn_id) to all participants"
+        },
+        {
+          "id": 6,
+          "text": "Each participant commits, releases locks, and acknowledges coordinator"
+        },
+        {
+          "id": 7,
+          "text": "Coordinator acknowledges success to the application"
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "hint": "Step 4 is the point of no return \u2014 the coordinator's log write is what makes the decision durable.",
+      "explanation": "The commit point is when the coordinator durably writes its decision. After this, even if the coordinator crashes, it will replay the commit decision on recovery."
+    },
+    {
+      "id": "con-puz-002",
+      "type": "pattern_matching",
+      "topic": "consensus",
+      "subtopic": "algorithms",
+      "difficulty": "intermediate",
+      "xp": 45,
+      "title": "Match Consensus Algorithm to Its Key Feature",
+      "instructions": "Match each consensus algorithm or concept to its defining characteristic.",
+      "pairs": [
+        {
+          "left": "Raft",
+          "right": "Uses randomized election timeouts; designed for understandability; term numbers"
+        },
+        {
+          "left": "Paxos (Multi-Paxos)",
+          "right": "Original consensus algorithm; ballot numbers; separates leader election from proposal phases"
+        },
+        {
+          "left": "ZooKeeper (Zab)",
+          "right": "Total order broadcast for ZooKeeper; epoch-based; zxid as fencing token"
+        },
+        {
+          "left": "Two-Phase Commit",
+          "right": "Blocking atomic commit; requires unanimous yes; coordinator is SPOF"
+        }
+      ],
+      "hint": "Each was designed with a specific goal: Raft=clarity, Paxos=generality, Zab=ZooKeeper, 2PC=heterogeneous atomicity.",
+      "explanation": "Raft prioritizes comprehensibility; Multi-Paxos is the production-optimized form; Zab is ZK-specific; 2PC provides atomicity across heterogeneous systems at the cost of blocking."
+    },
+    {
+      "id": "con-puz-003",
+      "type": "fill_in_blank",
+      "topic": "consensus",
+      "subtopic": "raft",
+      "difficulty": "advanced",
+      "xp": 60,
+      "title": "Raft Majority Calculation",
+      "question": "A Raft cluster has {{n}} nodes. To tolerate {{f}} failures, you need n = {{formula}}. For n=5, you can tolerate 2 failures. A leader election requires votes from {{votes5}} nodes including itself. If more than {{blocked}} nodes are unreachable, the cluster cannot make progress.",
+      "blanks": {
+        "n": "n",
+        "f": "f",
+        "formula": "2f + 1",
+        "votes5": "3",
+        "blocked": "2"
+      },
+      "hint": "Majority means more than half. For n=5, majority = 3.",
+      "explanation": "2f+1 nodes tolerate f failures: 3 nodes tolerate 1 failure, 5 tolerate 2, 7 tolerate 3. A majority (\u230an/2\u230b + 1) must agree. With n=5, majority=3. If 3+ nodes fail, system halts \u2014 safety maintained, liveness lost."
+    },
+    {
+      "id": "con-puz-004",
+      "type": "pattern_matching",
+      "topic": "consensus",
+      "subtopic": "linearizability",
+      "difficulty": "intermediate",
+      "xp": 45,
+      "title": "Which Systems Require Linearizability?",
+      "instructions": "Classify each use case: does it REQUIRE linearizability or can it tolerate eventual consistency?",
+      "pairs": [
+        {
+          "left": "Distributed lock (only one process holds it at a time)",
+          "right": "Requires linearizability \u2014 concurrent lock claims must be totally ordered"
+        },
+        {
+          "left": "User's social media feed (show recent posts)",
+          "right": "Can tolerate eventual consistency \u2014 brief staleness acceptable"
+        },
+        {
+          "left": "Bank account balance (read-after-write for the same account)",
+          "right": "Requires linearizability or at minimum read-after-write consistency"
+        },
+        {
+          "left": "Shopping cart (user's own items)",
+          "right": "Can tolerate eventual consistency \u2014 merging concurrent adds is acceptable"
+        }
+      ],
+      "hint": "Linearizability is needed when concurrent operations on the same data must have a definitive, real-time-ordered outcome.",
+      "explanation": "Locks, leader election, and financial operations require linearizability. Social feeds and shopping carts can use eventual consistency with last-write-wins or merge semantics."
+    },
+    {
+      "id": "con-puz-005",
+      "type": "sequence_ordering",
+      "topic": "consensus",
+      "subtopic": "raft",
+      "difficulty": "intermediate",
+      "xp": 55,
+      "title": "Raft Write Flow",
+      "instructions": "Arrange the steps of a Raft write commit in the correct order.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "Client sends write request to leader"
+        },
+        {
+          "id": 1,
+          "text": "Leader appends entry to its own log"
+        },
+        {
+          "id": 2,
+          "text": "Leader sends AppendEntries RPC to all followers"
+        },
+        {
+          "id": 3,
+          "text": "Majority of followers acknowledge the entry"
+        },
+        {
+          "id": 4,
+          "text": "Leader commits the entry and applies it to state machine"
+        },
+        {
+          "id": 5,
+          "text": "Leader notifies followers of commit; they apply to their state machines"
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "hint": "Leader always goes first \u2014 it must log before replicating.",
+      "explanation": "Raft write path: client \u2192 leader log \u2192 replicate \u2192 majority ACK \u2192 commit \u2192 notify followers."
+    },
+    {
+      "id": "con-puz-006",
+      "type": "fill_in_blank",
+      "topic": "consensus",
+      "subtopic": "raft",
+      "difficulty": "advanced",
+      "xp": 60,
+      "title": "Raft Election Terms",
+      "instructions": "Fill in the blanks about Raft's election mechanism.",
+      "question": "In Raft, time is divided into {{terms}}. A new election starts when a follower's {{timer}} expires. A candidate needs {{majority}} to win. If two candidates tie, the election {{restarts}} after a random timeout.",
+      "blanks": {
+        "terms": "terms",
+        "timer": "election timeout",
+        "majority": "a majority",
+        "restarts": "restarts"
+      },
+      "hint": "Random timeouts prevent split votes from repeating indefinitely.",
+      "explanation": "Terms act as logical clocks. Election timeout randomness prevents repeated split votes. A majority (n/2 + 1) is required to ensure at most one leader per term."
+    }
+  ]
+}

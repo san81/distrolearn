@@ -1,0 +1,261 @@
+{
+  "meta": {
+    "topic": "partitioning",
+    "source": "DDIA Chapter 6",
+    "generated": "2026-04-19",
+    "card_count": 8,
+    "puzzle_count": 4
+  },
+  "flashcards": [
+    {
+      "id": "par-001",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "partitioning",
+      "subtopic": "basics",
+      "tags": [
+        "sharding",
+        "partition",
+        "definition"
+      ],
+      "front": "What is partitioning (sharding) in distributed databases, and why is it needed?",
+      "back": "Partitioning (also called sharding) means splitting a large dataset across multiple nodes, so each node holds only a subset of the data. It is needed when the dataset is too large to fit on a single machine, or when query throughput exceeds what one machine can handle. Each partition is like a small database of its own, though the operations that touch multiple partitions are more complex. Partitioning is usually combined with replication: each partition is replicated across multiple nodes for fault tolerance."
+    },
+    {
+      "id": "par-002",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "partitioning",
+      "subtopic": "strategies",
+      "tags": [
+        "key-range",
+        "hash",
+        "hot-spot"
+      ],
+      "front": "What are the two primary partitioning strategies, and what are their trade-offs?",
+      "back": "1. Key-range partitioning: partitions are assigned a continuous range of sorted keys (like encyclopedia volumes). Enables efficient range queries \u2014 keys in one range are co-located. Risk: hot spots if workload is skewed (e.g., writing today's timestamp key all to one partition). Used by: HBase, RethinkDB, Bigtable. 2. Hash partitioning: a hash function is applied to the key; the hash determines the partition. Distributes keys evenly \u2014 reduces hot spots. Loses range query ability (must scatter-gather to all partitions). Used by: Cassandra (compound key: hash first part, range on rest), MongoDB hash sharding. Skew mitigation: if one key is extremely hot (celebrity user), append a random number prefix to split it across N partitions \u2014 reads must then combine from all N."
+    },
+    {
+      "id": "par-003",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "partitioning",
+      "subtopic": "secondary-indexes",
+      "tags": [
+        "secondary-index",
+        "scatter-gather",
+        "global-index"
+      ],
+      "front": "What are the two approaches to partitioning secondary indexes, and what are their trade-offs?",
+      "back": "1. Document-partitioned (local index): each partition maintains its own secondary index covering only its documents. Writes are local \u2014 update only the partition that owns the document. Reads require scatter/gather across all partitions to find all matching documents \u2014 expensive for high-cardinality queries; prone to tail latency amplification. Used by: MongoDB, Riak, Cassandra, Elasticsearch. 2. Term-partitioned (global index): a global index covering all documents is itself partitioned by term. Reads are efficient \u2014 go only to the partition(s) holding the queried term. Writes are expensive \u2014 a single document write may affect many term-index partitions; global secondary indexes are usually updated asynchronously (may lag writes). Used by: Amazon DynamoDB (global secondary indexes), Riak search."
+    },
+    {
+      "id": "par-004",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "partitioning",
+      "subtopic": "rebalancing",
+      "tags": [
+        "rebalancing",
+        "fixed-partitions",
+        "dynamic-partitions"
+      ],
+      "front": "What are the three main strategies for rebalancing partitions, and why is 'hash mod N' a bad approach?",
+      "back": "Why NOT hash mod N: if N (number of nodes) changes, almost all keys must be remapped \u2014 extremely expensive. Example: hash(key)=123456; with 10 nodes \u2192 node 6; with 11 nodes \u2192 node 3; with 12 nodes \u2192 node 0. Nearly every key moves on every node addition. Better strategies: 1. Fixed number of partitions: create many more partitions than nodes (e.g., 1000 partitions for 10 nodes). Adding a node steals a few partitions from existing nodes. Only partition-to-node assignment changes, not key-to-partition. Used by: Riak, Elasticsearch, Couchbase. 2. Dynamic partitioning: partitions split when they exceed a size threshold (HBase default: 10 GB), merge when they shrink. Size adapts to data volume. Pre-splitting avoids initial single-node bottleneck. 3. Proportional to nodes (Cassandra): fixed partitions per node; adding a node splits random existing partitions and takes half."
+    },
+    {
+      "id": "par-005",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "partitioning",
+      "subtopic": "request-routing",
+      "tags": [
+        "service-discovery",
+        "request-routing",
+        "ZooKeeper"
+      ],
+      "front": "How do clients know which node to contact for a partitioned database? Describe the three approaches to request routing.",
+      "back": "Challenge: as partitions are rebalanced, the assignment of partitions to nodes changes. Clients must know where to send requests. Three approaches: 1. Any node with forwarding: client contacts any node; if that node doesn't own the requested partition, it forwards the request to the correct node and relays the reply (gossip protocol). Used by: Cassandra, Riak. 2. Routing tier: a separate partition-aware load balancer or router receives all requests and forwards them to the correct node. 3. Client-side routing: clients are partition-aware and directly contact the correct node. Used by: MongoDB (mongos router), Kafka. Common coordination mechanism: ZooKeeper or etcd maintains authoritative partition-to-node mapping; nodes register themselves; clients and routing tiers subscribe to changes. HBase, Kafka, SolrCloud, Helix use ZooKeeper this way."
+    },
+    {
+      "id": "par-006",
+      "level": "L3",
+      "type": "flashcard",
+      "topic": "partitioning",
+      "subtopic": "strategies",
+      "tags": [
+        "hot-spot",
+        "skew",
+        "celebrity-problem"
+      ],
+      "front": "A social media platform has a celebrity with 50M followers. Every time they post, all writes go to the same partition. How would you mitigate this hot spot?",
+      "back": "Root cause: hashing the celebrity's user_id always produces the same hash \u2192 same partition, regardless of hash partitioning. Mitigation strategies: 1. Key splitting with random suffix: append a random 2-digit number (00\u201399) to the celebrity's key on write, distributing writes across 100 sub-keys on different partitions. Trade-off: reads must now query all 100 sub-keys and combine results. Must track which keys are 'hot' (can't apply this to all keys \u2014 unnecessary overhead for low-volume users). 2. Dedicated partition: manually assign a separate partition for known hot entities (requires operational tooling). 3. Application-level caching: cache the celebrity's posts in a read-heavy CDN/cache layer so partitions don't absorb all reads. 4. Fan-out on write: pre-compute and push notifications to follower shards at write time (Twitter's approach). This is an application-level trade-off, not solved by the DB partitioning scheme alone."
+    },
+    {
+      "id": "par-007",
+      "level": "L4",
+      "type": "flashcard",
+      "topic": "partitioning",
+      "subtopic": "secondary-indexes",
+      "tags": [
+        "application",
+        "design",
+        "e-commerce"
+      ],
+      "front": "You are designing a used-car marketplace with millions of listings. Users filter by color AND make simultaneously. Compare document-partitioned vs. term-partitioned secondary indexes for this query pattern.",
+      "back": "Query: 'find all red Toyotas' \u2014 requires matching on color:red AND make:Toyota simultaneously. Document-partitioned (local index): each partition has its own index. Query must scatter-gather to ALL partitions, collect matching document IDs from each, then intersect them. High latency (tail latency amplification); grows linearly with number of partitions. Suitable when most queries filter on partition key (e.g., partition by document_id, filter by document_id ranges). Term-partitioned (global index): index on color has one partition assignment; index on make has another. Query for red Toyotas goes to two partitions (color:red index, make:Toyota index), fetches doc IDs, intersects in application. Writes expensive \u2014 a new red Toyota must update both index partitions, possibly on different nodes. Index is usually updated asynchronously \u2192 short window where new listings aren't searchable. Recommendation: for this query pattern, term-partitioned global indexes are better for read performance. Accept async index updates and handle the eventual-consistency window in the UI (e.g., 'listing may take a moment to appear in search')."
+    },
+    {
+      "id": "par-008",
+      "level": "L5",
+      "type": "flashcard",
+      "topic": "partitioning",
+      "subtopic": "rebalancing",
+      "tags": [
+        "automatic-rebalancing",
+        "cascading-failure",
+        "operations"
+      ],
+      "front": "Why is fully automatic partition rebalancing potentially dangerous? Give a concrete failure scenario.",
+      "back": "Danger: automatic rebalancing combined with automatic failure detection can cause cascading failures. Scenario: Node A is temporarily slow (e.g., GC pause or network congestion). Other nodes observe slow responses and conclude Node A has failed. Automatic rebalancing triggers: partitions from Node A are redistributed to Nodes B, C, D. This rebalancing requires moving large amounts of data \u2014 now Nodes B, C, D are also overloaded with both serving requests AND accepting rebalancing data transfers. The added load causes Nodes B and C to slow down. Other nodes may now incorrectly conclude B and C are also failing, triggering more rebalancing. Potential outcome: a cascading failure that takes down the entire cluster, triggered by one temporarily slow node. Mitigation: require human approval for rebalancing (Couchbase, Riak, Voldemort generate a rebalancing plan automatically but require administrator to commit it). Rate-limit rebalancing bandwidth. Use circuit breakers to pause rebalancing if cluster health degrades during the process."
+    }
+  ],
+  "puzzles": [
+    {
+      "id": "par-puz-001",
+      "type": "pattern_matching",
+      "topic": "partitioning",
+      "subtopic": "strategies",
+      "difficulty": "beginner",
+      "xp": 35,
+      "title": "Match Partitioning Strategy to Database",
+      "instructions": "Match each database to its primary partitioning strategy.",
+      "pairs": [
+        {
+          "left": "HBase",
+          "right": "Key-range partitioning with dynamic splits at 10 GB"
+        },
+        {
+          "left": "Cassandra",
+          "right": "Hash of first compound key column; range on remaining columns"
+        },
+        {
+          "left": "MongoDB (hash mode)",
+          "right": "Hash partitioning \u2014 range queries scatter to all shards"
+        },
+        {
+          "left": "Riak",
+          "right": "Consistent hashing with virtual nodes, fixed partitions"
+        }
+      ],
+      "hint": "Consider whether each DB prioritizes range queries or even key distribution.",
+      "explanation": "HBase uses key-range for efficient range scans; Cassandra's compound key gives both hash distribution and range within a partition key; MongoDB hash mode sacrifices range queries for even distribution."
+    },
+    {
+      "id": "par-puz-002",
+      "type": "sequence_ordering",
+      "topic": "partitioning",
+      "subtopic": "rebalancing",
+      "difficulty": "intermediate",
+      "xp": 50,
+      "title": "Fixed-Partition Rebalancing: Adding a Node",
+      "instructions": "A 3-node cluster has 300 fixed partitions (100 per node). A 4th node is added. Arrange what happens in order.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "New node joins the cluster and registers itself"
+        },
+        {
+          "id": 1,
+          "text": "System identifies that each existing node should yield ~25 partitions to the new node"
+        },
+        {
+          "id": 2,
+          "text": "Partitions are transferred from existing nodes to new node over the network"
+        },
+        {
+          "id": 3,
+          "text": "During transfer, old partition assignment still handles reads/writes"
+        },
+        {
+          "id": 4,
+          "text": "Transfer completes; routing metadata updated to reflect new partition-to-node assignment"
+        },
+        {
+          "id": 5,
+          "text": "New node handles ~75 partitions; each existing node retains ~75 partitions"
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "hint": "Routing metadata only switches AFTER the transfer completes \u2014 reads/writes continue normally during transfer.",
+      "explanation": "Only the partition-to-node assignment changes; key-to-partition mapping stays fixed. Transfers happen in background with old routing still in effect."
+    },
+    {
+      "id": "par-puz-003",
+      "type": "fill_in_blank",
+      "topic": "partitioning",
+      "subtopic": "secondary-indexes",
+      "difficulty": "intermediate",
+      "xp": 45,
+      "title": "Secondary Index Types",
+      "question": "A {{A}} secondary index keeps each partition's index local \u2014 writes are cheap but reads require {{B}}. A {{C}} secondary index covers all partitions \u2014 reads are efficient but writes must update {{D}} partitions and the index is often updated {{E}}.",
+      "blanks": {
+        "A": "document-partitioned (local)",
+        "B": "scatter/gather across all partitions",
+        "C": "term-partitioned (global)",
+        "D": "multiple index",
+        "E": "asynchronously"
+      },
+      "hint": "Local = cheap writes, expensive reads. Global = expensive writes, cheap reads.",
+      "explanation": "The core trade-off: local indexes optimize writes by keeping them single-partition; global indexes optimize reads but scatter writes across multiple index partitions."
+    },
+    {
+      "id": "par-puz-004",
+      "type": "sequence_ordering",
+      "topic": "partitioning",
+      "subtopic": "consistent-hashing",
+      "difficulty": "advanced",
+      "xp": 60,
+      "title": "Consistent Hashing \u2014 Node Joins",
+      "instructions": "Arrange the steps when a new node joins a consistent hash ring.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "New node announces itself and gets assigned a position on the ring"
+        },
+        {
+          "id": 1,
+          "text": "System identifies which keys now fall under the new node's range"
+        },
+        {
+          "id": 2,
+          "text": "Data is migrated from the successor node to the new node"
+        },
+        {
+          "id": 3,
+          "text": "New node starts accepting reads and writes for its key range"
+        },
+        {
+          "id": 4,
+          "text": "Successor node removes the migrated keys from its store"
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "hint": "Placement comes first, then data moves follow.",
+      "explanation": "Only keys in the range [predecessor, new_node] need to move \u2014 from the successor. All other nodes are unaffected."
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "topic": "batch_processing",
+    "source": "DDIA Chapter 10",
+    "generated": "2026-04-19",
+    "card_count": 3,
+    "puzzle_count": 1
+  },
+  "flashcards": [
+    {
+      "id": "bat-001",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "batch_processing",
+      "subtopic": "MapReduce",
+      "tags": [
+        "MapReduce",
+        "map",
+        "reduce",
+        "distributed-filesystem"
+      ],
+      "front": "How does MapReduce work? Describe the map, shuffle, and reduce phases.",
+      "back": "MapReduce: a programming model for processing large datasets in parallel across a cluster. Input: files on a distributed filesystem (HDFS/GFS). Three phases: (1) Map: for each input record, the user-defined map function emits zero or more key-value pairs. Runs in parallel across all input file blocks. (2) Shuffle (framework-handled): framework collects all values for each key across all mapper outputs, sorts them by key, and routes them to the appropriate reducer. Network-intensive. (3) Reduce: for each unique key, the user-defined reduce function receives the key and all its values, and produces output. Runs in parallel across different keys. Output: written back to distributed filesystem. Key property: input is read-only — failures can be retried safely by re-running the map/reduce on the same input. Fault tolerance: failed tasks are automatically retried on other nodes. Contrast with stream: batch processes bounded input (yesterday's data) on a schedule; stream processes unbounded input continuously."
+    },
+    {
+      "id": "bat-002",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "batch_processing",
+      "subtopic": "joins",
+      "tags": [
+        "reduce-side-join",
+        "map-side-join",
+        "broadcast-join",
+        "sort-merge"
+      ],
+      "front": "Compare reduce-side joins vs. map-side joins in MapReduce. When is each appropriate?",
+      "back": "Reduce-side join (sort-merge join): mapper tags each record with its source dataset; shuffle groups all records with the same key together at the same reducer; reducer performs the join. No assumptions about data size or sort order. Handles any join size. Downside: expensive shuffle across network; all data must be transferred. Map-side join (broadcast hash join): one dataset small enough to fit in memory. The small dataset is loaded as a hash table into every mapper's memory. Each mapper joins its input records against the in-memory hash table locally — no shuffle needed. Much faster for small-large joins. Partitioned map-side join: both datasets are partitioned and sorted the same way. Mapper only needs to hold one partition of the small dataset. Avoids full broadcast. When to use: reduce-side = large-large joins where both datasets are big; broadcast = small-large joins (e.g., user info table < 1 GB, event log is TBs); partitioned map-side = medium-large joins where both are sorted by the same key. Modern systems (Spark, Flink) choose join strategy automatically based on dataset size statistics."
+    },
+    {
+      "id": "bat-003",
+      "level": "L3",
+      "type": "flashcard",
+      "topic": "batch_processing",
+      "subtopic": "beyond-MapReduce",
+      "tags": [
+        "Spark",
+        "Flink",
+        "dataflow",
+        "materialization",
+        "pipelined"
+      ],
+      "front": "What limitations of MapReduce did systems like Spark and Flink address?",
+      "back": "MapReduce limitations: (1) Materializes intermediate state: every MapReduce job writes output to HDFS before the next job reads it. For multi-step pipelines (10+ jobs), this creates enormous I/O overhead — slow and expensive. (2) Batch-only: no native streaming support. (3) High latency: even a small query requires a full batch job. Spark improvements: in-memory RDDs (Resilient Distributed Datasets) — intermediate results stay in memory across operations, not written to disk between steps. Lazy evaluation — operations build a logical plan; execution starts only when output is needed, enabling optimization. For fault tolerance: recompute lost partitions from lineage (which operations created them) rather than writing checkpoints. Flink improvements: true streaming-first with bounded (batch) as special case; pipelined execution (operators process data as it arrives, without waiting for upstream to finish); exactly-once semantics with Chandy-Lamport snapshots. Common benefits of both: higher-level APIs (DataFrames, SQL, Dataset); automatic join strategy selection; better resource utilization. MapReduce is now largely deprecated for interactive analytics — Spark/Flink dominate."
+    }
+  ],
+  "puzzles": [
+    {
+      "id": "bat-puz-001",
+      "type": "sequence_ordering",
+      "topic": "batch_processing",
+      "subtopic": "MapReduce",
+      "difficulty": "intermediate",
+      "xp": 45,
+      "title": "MapReduce Word Count Pipeline",
+      "instructions": "Arrange the steps of a MapReduce word count job.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "Input file split into blocks across HDFS nodes"
+        },
+        {
+          "id": 1,
+          "text": "Map phase: each mapper reads its block, emits (word, 1) for each word"
+        },
+        {
+          "id": 2,
+          "text": "Combiner (optional local reduce): sum counts per word within each mapper output"
+        },
+        {
+          "id": 3,
+          "text": "Shuffle: framework sorts all (word, count) pairs by word, routes to reducers"
+        },
+        {
+          "id": 4,
+          "text": "Reduce phase: reducer sums all counts for each word, emits (word, total_count)"
+        },
+        {
+          "id": 5,
+          "text": "Output written to HDFS as final word count file"
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "hint": "The combiner is a local optimization that reduces shuffle data volume but doesn't change correctness.",
+      "explanation": "MapReduce: split → map → (optional combine) → shuffle+sort → reduce → output. The shuffle is the most expensive phase — it moves data across the network."
+    }
+  ]
+}

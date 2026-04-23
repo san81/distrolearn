@@ -1,0 +1,206 @@
+{
+  "meta": {
+    "topic": "distributed_systems_faults",
+    "source": "DDIA Chapter 8",
+    "generated": "2026-04-19",
+    "card_count": 4,
+    "puzzle_count": 3
+  },
+  "flashcards": [
+    {
+      "id": "flt-001",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "distributed_systems_faults",
+      "subtopic": "networks",
+      "tags": [
+        "network-faults",
+        "partial-failure",
+        "unbounded-delay"
+      ],
+      "front": "What is a partial failure, and why is it the defining challenge of distributed systems?",
+      "back": "Partial failure: in a distributed system, some parts of the system may fail while others continue working correctly \u2014 and it's often non-obvious which parts have failed. In a single computer, either everything works or the whole machine crashes (deterministic behavior). In distributed systems, you might have: a network packet is lost but the sender doesn't know if the receiver got it; a message is delayed arbitrarily; a node crashes mid-operation; a node is slow but not crashed (behaves like it crashed from others' perspective). Nondeterminism: partial failures are nondeterministic. The same request might succeed on one try and fail on the next, with no code change. Networks in practice: packet loss, corruption, unbounded delays, asymmetric partitions (A can send to B, B cannot send to A), full datacenter failures. This is fundamentally different from writing software for a single machine \u2014 you must design for the possibility of partial failure at every layer."
+    },
+    {
+      "id": "flt-002",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "distributed_systems_faults",
+      "subtopic": "clocks",
+      "tags": [
+        "clocks",
+        "NTP",
+        "monotonic-clock",
+        "clock-skew",
+        "Lamport"
+      ],
+      "front": "Why can't distributed systems rely on synchronized clocks? What are the two types of clocks and when is each appropriate?",
+      "back": "Problem with synchronized clocks: NTP synchronization has uncertainty of tens of milliseconds on a good day; up to 100ms or more on a congested network. Computer clocks drift and must be corrected by NTP \u2014 they can jump forward or backward. Leap seconds: NTP may introduce a 1-second gap or repeat. Quartz oscillators drift 6ms/day. Two clock types: 1. Time-of-day clock (wall clock): returns current date and time. Synchronized to NTP. Can jump forward or backward on NTP correction. NOT suitable for measuring elapsed time or ordering events across nodes (skew makes comparisons unreliable). Use for: logging timestamps for human consumption, coarse scheduling. 2. Monotonic clock: returns a counter that always moves forward (never jumps back). Not synchronized across nodes \u2014 absolute value is meaningless. Suitable for: measuring duration of operations within a single process (nanosecond precision). Use for: timeouts, performance measurements. Key danger: using time-of-day clocks for ordering distributed events. Last Write Wins (LWW) based on timestamps is unreliable \u2014 clock skew can cause newer writes to appear older. Alternative: Lamport timestamps or vector clocks for causal ordering without relying on wall clocks."
+    },
+    {
+      "id": "flt-003",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "distributed_systems_faults",
+      "subtopic": "process-pauses",
+      "tags": [
+        "GC-pause",
+        "process-pause",
+        "fencing-token",
+        "leases"
+      ],
+      "front": "What is a process pause, and why does it invalidate leader leases in distributed systems?",
+      "back": "Process pause: a running process can be 'paused' for an arbitrary duration by: GC (garbage collection) stop-the-world pauses \u2014 typically milliseconds but can be seconds for large heaps; VM live migration \u2014 hypervisor pauses the VM briefly while migrating to another host; OS context switching to other processes; disk I/O blocking the process; heavy CPU load. Problem with leader leases: a leader acquires a lease (distributed lock with expiry, e.g., 30 seconds). Leader assumes it's still the leader during the lease period. But: if the leader process pauses (e.g., GC pause for 35 seconds) during the lease, the lease expires and a new leader is elected. The paused process resumes, still thinks it's leader, and issues writes \u2014 now two leaders exist. The paused process doesn't know time has passed. Solution \u2014 fencing tokens: whenever a lock is acquired, the lock service returns a monotonically increasing token. Any write to the storage service must include the token; the storage service rejects writes with older tokens than it has already seen. This prevents an old leader's writes from being accepted even if it doesn't know it's no longer leader."
+    },
+    {
+      "id": "flt-004",
+      "level": "L3",
+      "type": "flashcard",
+      "topic": "distributed_systems_faults",
+      "subtopic": "system-models",
+      "tags": [
+        "system-model",
+        "crash-stop",
+        "crash-recovery",
+        "byzantine",
+        "partial-synchrony"
+      ],
+      "front": "What are the common system models for distributed systems, and why do they matter for algorithm correctness?",
+      "back": "Node behavior models: 1. Crash-stop: a node either works correctly or stops permanently (never sends incorrect data). Simplest model. 2. Crash-recovery: a node can crash and restart; it may have durable state (disk) that survives crashes but not in-memory state. Most real systems assume this. 3. Byzantine faults: a node can behave arbitrarily \u2014 sending incorrect, malicious, or contradictory messages. Byzantine fault-tolerant (BFT) algorithms exist but are expensive; required for: blockchain consensus, aerospace, nuclear systems. In practice most distributed DBs assume crash-recovery (not Byzantine). Network timing models: 1. Synchronous: bounded message delay and processing time. Easy to reason about; rarely true in practice. 2. Asynchronous: no timing guarantees whatsoever \u2014 messages can be delayed arbitrarily. FLP impossibility applies. 3. Partially synchronous (most real systems): usually behaves synchronously but occasionally has unbounded delays. Most practical distributed algorithms assume partial synchrony \u2014 they rely on timeouts, knowing timeouts may be wrong sometimes. Algorithm properties: Safety (nothing bad ever happens): must hold even in asynchronous systems with crashes. Liveness (something good eventually happens): only needs to hold in partially synchronous systems. Engineers design for safety always; liveness under 'good enough' conditions."
+    }
+  ],
+  "puzzles": [
+    {
+      "id": "flt-puz-001",
+      "type": "pattern_matching",
+      "topic": "distributed_systems_faults",
+      "subtopic": "clocks",
+      "difficulty": "intermediate",
+      "xp": 45,
+      "title": "Clock Type to Use Case",
+      "instructions": "Match each use case to the appropriate clock type.",
+      "pairs": [
+        {
+          "left": "Measure how long an RPC call took (within one process)",
+          "right": "Monotonic clock \u2014 always moves forward, high precision, no NTP jumps"
+        },
+        {
+          "left": "Determine which of two concurrent writes happened first (across two nodes)",
+          "right": "Neither \u2014 use Lamport timestamps or vector clocks; wall clocks are unreliable across nodes"
+        },
+        {
+          "left": "Log a timestamp for a human-readable audit trail",
+          "right": "Time-of-day clock \u2014 synchronized to NTP, gives human-readable dates"
+        },
+        {
+          "left": "Implement a timeout for a request (expire after 30s)",
+          "right": "Monotonic clock \u2014 immune to NTP corrections that could make time go backward"
+        }
+      ],
+      "hint": "Monotonic clocks never go backward \u2014 safe for durations. Time-of-day clocks sync to NTP \u2014 safe for human timestamps. Cross-node ordering needs logical clocks.",
+      "explanation": "Monotonic clocks are for measuring elapsed time within a process. Time-of-day clocks are for logging human timestamps. Cross-node event ordering must use logical clocks (Lamport, vector clocks) due to clock skew."
+    },
+    {
+      "id": "flt-puz-002",
+      "type": "sequence_ordering",
+      "topic": "distributed_systems_faults",
+      "subtopic": "process-pauses",
+      "difficulty": "advanced",
+      "xp": 60,
+      "title": "Fencing Token \u2014 Preventing Stale Leader Writes",
+      "instructions": "Arrange the events when a GC pause causes a leader to become stale, and fencing tokens prevent data corruption.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "Leader 1 acquires distributed lock, receives fencing token #33"
+        },
+        {
+          "id": 1,
+          "text": "Leader 1 begins GC pause \u2014 unresponsive for 35 seconds"
+        },
+        {
+          "id": 2,
+          "text": "Lock expires; Leader 2 acquires lock, receives fencing token #34"
+        },
+        {
+          "id": 3,
+          "text": "Leader 2 writes to storage with token #34 \u2014 storage records token #34"
+        },
+        {
+          "id": 4,
+          "text": "Leader 1 resumes from GC pause, still thinks it holds the lock"
+        },
+        {
+          "id": 5,
+          "text": "Leader 1 attempts to write to storage with token #33"
+        },
+        {
+          "id": 6,
+          "text": "Storage rejects Leader 1's write \u2014 token #33 is older than the seen token #34"
+        },
+        {
+          "id": 7,
+          "text": "Data integrity preserved \u2014 only Leader 2's writes accepted"
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "hint": "The storage layer is the enforcer \u2014 it rejects writes with stale tokens regardless of what the writer believes.",
+      "explanation": "Fencing tokens make the storage service the final authority. Even if a leader believes it holds the lock, the storage service can detect and reject stale writes using the monotonically increasing token."
+    },
+    {
+      "id": "flt-puz-003",
+      "type": "sequence_ordering",
+      "topic": "distributed_systems_faults",
+      "subtopic": "2pc",
+      "difficulty": "advanced",
+      "xp": 65,
+      "title": "Two-Phase Commit Protocol",
+      "instructions": "Arrange the steps of the Two-Phase Commit (2PC) protocol in order.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "Coordinator sends PREPARE to all participants"
+        },
+        {
+          "id": 1,
+          "text": "Each participant executes transaction, writes to WAL, replies VOTE-COMMIT or VOTE-ABORT"
+        },
+        {
+          "id": 2,
+          "text": "If all voted commit, coordinator writes COMMIT to its WAL and sends COMMIT to participants"
+        },
+        {
+          "id": 3,
+          "text": "If any voted abort, coordinator sends ABORT to all participants"
+        },
+        {
+          "id": 4,
+          "text": "Participants apply commit/abort and send ACK to coordinator"
+        },
+        {
+          "id": 5,
+          "text": "Coordinator marks transaction complete after receiving all ACKs"
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        4,
+        5,
+        3
+      ],
+      "hint": "Phase 1 = voting, Phase 2 = decision. The coordinator's WAL write is the point of no return.",
+      "explanation": "2PC guarantees atomicity across nodes but blocks if the coordinator crashes after PREPARE \u2014 participants are stuck until coordinator recovers. This is why 2PC is called a blocking protocol."
+    }
+  ]
+}

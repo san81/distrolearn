@@ -1,0 +1,208 @@
+{
+  "meta": {
+    "topic": "transactions",
+    "source": "DDIA Chapter 7",
+    "generated": "2026-04-19",
+    "card_count": 6,
+    "puzzle_count": 3
+  },
+  "flashcards": [
+    {
+      "id": "tx-001",
+      "level": "L1",
+      "type": "flashcard",
+      "topic": "transactions",
+      "subtopic": "ACID",
+      "tags": [
+        "ACID",
+        "atomicity",
+        "consistency",
+        "isolation",
+        "durability"
+      ],
+      "front": "What does ACID stand for, and what does each property actually guarantee?",
+      "back": "A \u2014 Atomicity: all writes in a transaction succeed or all are aborted. If anything fails mid-transaction, partial writes are rolled back. ('All or nothing') C \u2014 Consistency: the application's invariants are maintained (e.g., account debits must be balanced by credits). Actually a property of the APPLICATION, not the database \u2014 the database provides the other three, but consistency is up to you. I \u2014 Isolation: concurrently executing transactions appear as if they ran serially. One transaction cannot see another transaction's uncommitted data (to varying degrees depending on isolation level). D \u2014 Durability: once a transaction is committed, its data will not be lost even in the event of a crash. Typically implemented via write-ahead log (WAL) flushed to disk before acknowledging commit."
+    },
+    {
+      "id": "tx-002",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "transactions",
+      "subtopic": "isolation-levels",
+      "tags": [
+        "read-committed",
+        "snapshot-isolation",
+        "serializability",
+        "dirty-reads"
+      ],
+      "front": "Describe the four common transaction isolation levels and the anomalies each prevents or permits.",
+      "back": "1. Read Uncommitted: transactions can read uncommitted writes from other transactions (dirty reads). Prevents: nothing meaningful. Used rarely. 2. Read Committed: prevents dirty reads (only see committed data) and dirty writes (don't overwrite uncommitted data). Common default (PostgreSQL, Oracle). Still allows non-repeatable reads (data changes between two reads in same tx) and phantoms. 3. Snapshot Isolation (Repeatable Read): each transaction reads from a consistent snapshot taken at transaction start. Prevents dirty reads, non-repeatable reads, and most phantoms. Implemented with MVCC (multi-version concurrency control) \u2014 reads don't block writers; writers don't block readers. Still allows write skew anomalies. Default in PostgreSQL ('repeatable read'), MySQL InnoDB. 4. Serializable: strongest \u2014 transactions execute as if completely serial. Prevents all anomalies including write skew. Implemented via: actual serial execution (VoltDB, Redis), two-phase locking (2PL, older DBs), or Serializable Snapshot Isolation (SSI, modern \u2014 optimistic approach)."
+    },
+    {
+      "id": "tx-003",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "transactions",
+      "subtopic": "concurrency-anomalies",
+      "tags": [
+        "write-skew",
+        "phantom",
+        "lost-update",
+        "dirty-read"
+      ],
+      "front": "What is write skew? Give a concrete example and explain why snapshot isolation doesn't prevent it.",
+      "back": "Write skew: two transactions read the same data, each makes a decision based on what it read, and each writes to different objects. The combined result violates an invariant that neither transaction individually violated. Example (on-call doctors): Transaction A reads: 2 doctors on call (Alice, Bob). Invariant: at least 1 must be on call. A decides to remove Alice (still 1 left). Transaction B simultaneously reads: 2 doctors on call. B decides to remove Bob (still 1 left). Both commit. Result: 0 doctors on call \u2014 invariant violated. Why snapshot isolation fails: A and B each read a snapshot where both doctors are on call. Neither sees the other's write. Each transaction is individually valid from its snapshot's perspective. Snapshot isolation only sees a consistent snapshot at START of transaction \u2014 it doesn't see writes made by concurrent transactions during execution. Solution: serializable isolation (e.g., SSI or 2PL), or materializing the conflict (add a row for 'on-call slot' that both transactions write to, turning write skew into a write-write conflict detectable by snapshot isolation)."
+    },
+    {
+      "id": "tx-004",
+      "level": "L2",
+      "type": "flashcard",
+      "topic": "transactions",
+      "subtopic": "2PL-SSI",
+      "tags": [
+        "2PL",
+        "SSI",
+        "serializable",
+        "performance"
+      ],
+      "front": "Compare Two-Phase Locking (2PL) and Serializable Snapshot Isolation (SSI) for achieving serializability.",
+      "back": "Two-Phase Locking (2PL) \u2014 pessimistic: readers acquire shared locks; writers acquire exclusive locks. A writer blocks all readers and writers; a reader blocks writers (but not other readers). Phase 1 (expanding): acquire locks as needed. Phase 2 (shrinking): release locks only after commit/abort. Pros: prevents all anomalies; no conflicts \u2014 all serialized. Cons: poor throughput under contention; deadlocks (transactions waiting for each other's locks \u2014 need detection and rollback); readers block writers and vice versa. Serializable Snapshot Isolation (SSI) \u2014 optimistic: transactions proceed with snapshot reads (no blocking). At commit time, SSI detects if any transaction read data that was modified by a concurrent transaction (detects 'stale reads'). If so, abort and retry. Pros: reads never block writes; much better throughput for read-heavy workloads. Cons: higher abort rate under high contention (wasted work on transactions that will be retried); requires tracking read sets. Used by: PostgreSQL (serializable isolation level since v9.1), FoundationDB, CockroachDB."
+    },
+    {
+      "id": "tx-005",
+      "level": "L3",
+      "type": "flashcard",
+      "topic": "transactions",
+      "subtopic": "isolation-levels",
+      "tags": [
+        "trade-offs",
+        "application-design",
+        "isolation"
+      ],
+      "front": "In practice, why do most applications use snapshot isolation rather than full serializability, and when is this dangerous?",
+      "back": "Why most use snapshot isolation (not serializability): Serializability (2PL) has significant performance cost \u2014 lock contention slows throughput, deadlocks require retries, readers block writers. SSI is better but still has abort overhead. Snapshot isolation is fast and prevents most common anomalies (dirty reads, non-repeatable reads) with MVCC \u2014 readers and writers don't block each other. Dangerous cases where snapshot isolation is insufficient: (1) Write skew scenarios (see on-call doctor example) \u2014 common in booking systems, constraint enforcement, account balance checks. (2) Phantoms: a transaction reads a set of rows matching a condition; another transaction inserts rows matching that condition; first transaction makes decisions based on incomplete picture. (3) Any multi-object invariant that spans multiple rows/tables. Rule: if your application has invariants that involve reads and writes across multiple objects by concurrent transactions, snapshot isolation is not enough \u2014 use serializable isolation or redesign to avoid the race condition (pessimistic locks, atomic compare-and-set operations, or serializable DBs)."
+    },
+    {
+      "id": "tx-006",
+      "level": "L4",
+      "type": "flashcard",
+      "topic": "transactions",
+      "subtopic": "concurrency-anomalies",
+      "tags": [
+        "application",
+        "booking",
+        "write-skew",
+        "design"
+      ],
+      "front": "Design a hotel room booking system that prevents double-booking, where two users simultaneously try to book the last available room.",
+      "back": "Race condition: User A reads available rooms \u2192 1 room left \u2192 decides to book. User B reads available rooms \u2192 1 room left \u2192 decides to book. Both commit \u2192 double-booked. Solutions by isolation level: Read committed (no fix): both transactions can commit \u2014 classic double-booking. Snapshot isolation (no fix): each transaction sees snapshot at start \u2014 both see 1 room available, both book. Write skew anomaly. Serializability (fixes): with 2PL, one booking transaction acquires an exclusive lock; the other waits. With SSI, one transaction detects its snapshot was stale (other committed a booking) and aborts. Application-level fixes (if stuck with weaker isolation): (1) SELECT FOR UPDATE: explicitly lock the booking row before reading \u2014 'SELECT * FROM rooms WHERE id=? FOR UPDATE'. Forces sequential execution. (2) Materialized conflict: insert a 'reservation attempt' row for the room+date \u2014 two attempts create a write-write conflict detectable by snapshot isolation. (3) Atomic compare-and-set: UPDATE rooms SET booked=true WHERE id=? AND booked=false; check affected rows count. Fails atomically if another transaction already booked. Best practice: use a DB that supports serializable isolation (PostgreSQL, CockroachDB) and enable it for booking transactions \u2014 accept slightly lower throughput for correctness guarantees."
+    }
+  ],
+  "puzzles": [
+    {
+      "id": "tx-puz-001",
+      "type": "pattern_matching",
+      "topic": "transactions",
+      "subtopic": "isolation-levels",
+      "difficulty": "intermediate",
+      "xp": 45,
+      "title": "Match Isolation Level to Anomaly It Prevents",
+      "instructions": "Match each isolation level to the anomalies it prevents (cumulative \u2014 higher levels prevent all below).",
+      "pairs": [
+        {
+          "left": "Read Committed",
+          "right": "Dirty reads, dirty writes"
+        },
+        {
+          "left": "Snapshot Isolation",
+          "right": "Non-repeatable reads, most read phantoms (via MVCC)"
+        },
+        {
+          "left": "Serializable (2PL or SSI)",
+          "right": "Write skew, phantoms, all concurrency anomalies"
+        },
+        {
+          "left": "Read Uncommitted",
+          "right": "Prevents nothing \u2014 allows dirty reads"
+        }
+      ],
+      "hint": "Each level builds on the previous. Snapshot isolation uses MVCC to prevent reads changing within a transaction.",
+      "explanation": "Isolation levels form a hierarchy: read uncommitted < read committed < snapshot isolation < serializable. Each level prevents a superset of the previous level's anomaly prevention."
+    },
+    {
+      "id": "tx-puz-002",
+      "type": "sequence_ordering",
+      "topic": "transactions",
+      "subtopic": "2PL",
+      "difficulty": "advanced",
+      "xp": 60,
+      "title": "Two-Phase Locking \u2014 Write Skew Prevention",
+      "instructions": "Arrange what happens when two concurrent transactions attempt to remove themselves from the on-call schedule using 2PL.",
+      "steps": [
+        {
+          "id": 0,
+          "text": "Tx A: SELECT doctors on call \u2014 acquires shared lock on on-call rows (Alice, Bob)"
+        },
+        {
+          "id": 1,
+          "text": "Tx B: SELECT doctors on call \u2014 also acquires shared lock (shared locks are compatible)"
+        },
+        {
+          "id": 2,
+          "text": "Tx A: decides to remove Alice \u2014 tries to acquire EXCLUSIVE lock on Alice's row"
+        },
+        {
+          "id": 3,
+          "text": "Tx B holds shared lock on Alice's row \u2014 Tx A BLOCKS waiting for Tx B to release"
+        },
+        {
+          "id": 4,
+          "text": "Tx B: decides to remove Bob \u2014 tries to acquire exclusive lock on Bob's row \u2014 SUCCEEDS"
+        },
+        {
+          "id": 5,
+          "text": "Tx B commits, releases all locks; now only Alice is on call"
+        },
+        {
+          "id": 6,
+          "text": "Tx A unblocks, acquires exclusive lock on Alice's row \u2014 reads: only 1 doctor on call now"
+        },
+        {
+          "id": 7,
+          "text": "Tx A sees invariant would be violated (0 doctors) \u2014 aborts"
+        }
+      ],
+      "correct_order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "hint": "Shared locks are compatible; exclusive locks are not. The key is when Tx A re-reads after being unblocked.",
+      "explanation": "2PL prevents write skew by blocking Tx A from writing until Tx B commits. When Tx A re-reads after being unblocked, it sees Tx B's committed state and correctly identifies the invariant violation."
+    },
+    {
+      "id": "txn-puz-001",
+      "type": "fill_in_blank",
+      "topic": "transactions",
+      "subtopic": "mvcc",
+      "difficulty": "intermediate",
+      "xp": 50,
+      "title": "MVCC Read Visibility",
+      "instructions": "Fill in the blanks about MVCC snapshot isolation.",
+      "question": "Under MVCC, each transaction sees a {{snapshot}} of the database taken at transaction {{start}}. Writes create {{new_versions}} rather than overwriting. Readers never {{block}} writers and writers never block readers.",
+      "blanks": {
+        "snapshot": "consistent snapshot",
+        "start": "start time",
+        "new_versions": "new versions",
+        "block": "block"
+      },
+      "hint": "MVCC keeps old row versions until no transaction can see them.",
+      "explanation": "MVCC = Multi-Version Concurrency Control. Each write appends a new version with a transaction ID. Readers pick versions visible at their snapshot timestamp."
+    }
+  ]
+}
