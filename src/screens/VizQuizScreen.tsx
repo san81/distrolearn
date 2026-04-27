@@ -141,9 +141,9 @@ export default function VizQuizScreen({ userId, onExit }: Props) {
 
   const swipeBack = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: (_, gs) => gs.x0 < 30,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gs) =>
-        gs.dx > 10 && Math.abs(gs.dy) < 80 && gs.dx > Math.abs(gs.dy),
+        gs.x0 < 30 && gs.dx > 10 && Math.abs(gs.dy) < 80 && gs.dx > Math.abs(gs.dy),
       onPanResponderRelease: (_, gs) => {
         if (gs.dx > 60) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

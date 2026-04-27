@@ -345,6 +345,22 @@ export async function finalizeSession(sessionId: string, xpEarned: number): Prom
   );
 }
 
+// ── Dev utilities ─────────────────────────────────────────────────────────────
+
+/**
+ * Reset all SM-2 cards for a user to be due today.
+ * Useful during development to re-encounter cards without waiting for their schedule.
+ * Does NOT reset easiness / repetitions / interval — only nextReview.
+ */
+export async function resetAllCardsDueToday(userId: string): Promise<number> {
+  const db = await getDb();
+  const result = await db.runAsync(
+    `UPDATE card_sm2 SET nextReview = ? WHERE userId = ?`,
+    [today(), userId],
+  );
+  return result.changes;
+}
+
 // ── Dev seed ──────────────────────────────────────────────────────────────────
 
 /**
@@ -358,19 +374,21 @@ export async function seedDevCards(userId: string): Promise<void> {
 
   const db = await getDb();
 
-  // Skip if already seeded
-  const existing = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM card_content',
-  );
-  if ((existing?.count ?? 0) > 0) return;
-
   const t = today();
   for (const c of QBANK_FLASHCARDS) {
+    // Always upsert content so JSON edits (text, markdown) are reflected on next launch
     await db.runAsync(
-      `INSERT OR IGNORE INTO card_content (cardId, front, back, topic, subtopic, level)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO card_content (cardId, front, back, topic, subtopic, level)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(cardId) DO UPDATE SET
+         front    = excluded.front,
+         back     = excluded.back,
+         topic    = excluded.topic,
+         subtopic = excluded.subtopic,
+         level    = excluded.level`,
       [c.cardId, c.front, c.back, c.topic, c.subtopic, c.level],
     );
+    // Preserve SM-2 progress — only insert if not already tracked
     await db.runAsync(
       `INSERT OR IGNORE INTO card_sm2 (cardId, userId, easiness, interval, repetitions, nextReview, lastQuality)
        VALUES (?, ?, 2.5, 1, 0, ?, 0)`,

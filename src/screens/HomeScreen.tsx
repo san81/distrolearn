@@ -11,11 +11,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  RefreshControl, StatusBar, ActivityIndicator,
+  RefreshControl, StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, S, R, FONT, SHADOW, TOPIC_META, xpToLevel, xpProgress, xpToNextLevel } from '../theme';
-import { getProgress, getDueCards, getSM2Metrics, getCardsByTopic } from '../db/database';
+import { getProgress, getDueCards, getSM2Metrics, getCardsByTopic, resetAllCardsDueToday } from '../db/database';
 import { pullUserSM2State } from '../services/sync';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -84,6 +84,24 @@ export default function HomeScreen({
   useEffect(() => { load(); }, [load]);
 
   const onRefresh = () => load(true);
+
+  const onResetCards = () => {
+    Alert.alert(
+      'Reset all cards',
+      'Set every card as due today? Your SM-2 scores are kept.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset', style: 'destructive',
+          onPress: async () => {
+            const count = await resetAllCardsDueToday(userId);
+            await load();
+            Alert.alert('Done', `${count} cards are now due today.`);
+          },
+        },
+      ],
+    );
+  };
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -221,6 +239,16 @@ export default function HomeScreen({
           ))}
         </View>
 
+        {/* ── Dev tools (debug builds only) ── */}
+        {__DEV__ && (
+          <>
+            <SectionHeader title="DEV TOOLS" />
+            <TouchableOpacity style={devStyles.btn} onPress={onResetCards} activeOpacity={0.75}>
+              <Text style={devStyles.btnText}>Reset all cards to due today</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
         {/* Bottom padding for tab bar */}
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -326,6 +354,14 @@ const mc = StyleSheet.create({
   icon: { fontSize: 18 },
   value: { fontSize: 22, fontWeight: '900', fontFamily: FONT.sans },
   label: { fontSize: 11, color: C.textMid, fontFamily: FONT.mono, letterSpacing: 0.5 },
+});
+
+const devStyles = StyleSheet.create({
+  btn: {
+    backgroundColor: '#1A0A0A', borderRadius: R.lg, borderWidth: 1,
+    borderColor: '#FF6B6B44', padding: S.lg, alignItems: 'center',
+  },
+  btnText: { color: '#FF6B6B', fontSize: 13, fontWeight: '600', fontFamily: FONT.sans },
 });
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

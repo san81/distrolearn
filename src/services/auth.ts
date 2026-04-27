@@ -13,11 +13,49 @@ import * as SecureStore from 'expo-secure-store';
 const SUPABASE_URL      = process.env.EXPO_PUBLIC_SUPABASE_URL  ?? '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-// expo-secure-store adapter for Supabase auth persistence
+// expo-secure-store adapter for Supabase auth persistence.
+// Supabase session JSON can exceed 2048 bytes (JWT + refresh token + user metadata),
+// so large values are split across numbered chunk keys to stay within the limit.
+const CHUNK_SIZE = 1800;
+
 const ExpoSecureStoreAdapter = {
-  getItem:    (key: string) => SecureStore.getItemAsync(key),
-  setItem:    (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+  async getItem(key: string): Promise<string | null> {
+    const numChunksStr = await SecureStore.getItemAsync(`${key}.chunks`);
+    if (!numChunksStr) return SecureStore.getItemAsync(key);
+    const numChunks = parseInt(numChunksStr, 10);
+    const parts: string[] = [];
+    for (let i = 0; i < numChunks; i++) {
+      const chunk = await SecureStore.getItemAsync(`${key}.${i}`);
+      if (chunk) parts.push(chunk);
+    }
+    return parts.join('');
+  },
+
+  async setItem(key: string, value: string): Promise<void> {
+    if (value.length <= CHUNK_SIZE) {
+      await SecureStore.deleteItemAsync(`${key}.chunks`).catch(() => {});
+      await SecureStore.setItemAsync(key, value);
+      return;
+    }
+    const numChunks = Math.ceil(value.length / CHUNK_SIZE);
+    await SecureStore.setItemAsync(`${key}.chunks`, String(numChunks));
+    for (let i = 0; i < numChunks; i++) {
+      await SecureStore.setItemAsync(`${key}.${i}`, value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+    }
+    await SecureStore.deleteItemAsync(key).catch(() => {});
+  },
+
+  async removeItem(key: string): Promise<void> {
+    const numChunksStr = await SecureStore.getItemAsync(`${key}.chunks`).catch(() => null);
+    if (numChunksStr) {
+      const numChunks = parseInt(numChunksStr, 10);
+      await SecureStore.deleteItemAsync(`${key}.chunks`).catch(() => {});
+      for (let i = 0; i < numChunks; i++) {
+        await SecureStore.deleteItemAsync(`${key}.${i}`).catch(() => {});
+      }
+    }
+    await SecureStore.deleteItemAsync(key).catch(() => {});
+  },
 };
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

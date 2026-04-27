@@ -20,7 +20,7 @@
         "replica"
       ],
       "front": "What is replication in distributed databases, and why is it used?",
-      "back": "Replication means keeping a copy of the same data on multiple machines connected via a network. It is used to: (1) reduce latency by keeping data geographically close to users, (2) increase availability so the system continues working if some parts fail, and (3) scale read throughput by distributing read queries across multiple replicas. The core challenge is handling changes to replicated data."
+      "back": "**Replication** means keeping a copy of the same data on multiple machines connected via a network.\n\nIt is used to:\n1. **Reduce latency** — keep data geographically close to users\n2. **Increase availability** — system continues working if some parts fail\n3. **Scale read throughput** — distribute read queries across multiple replicas\n\nThe core challenge is handling changes to replicated data."
     },
     {
       "id": "rep-002",
@@ -34,7 +34,7 @@
         "master-slave"
       ],
       "front": "What is leader-based replication (master–slave replication)?",
-      "back": "In leader-based replication: (1) one replica is designated the leader — all writes go to the leader first; (2) followers receive a replication log or change stream from the leader and apply writes in the same order; (3) reads can go to either the leader or any follower, but writes are only accepted by the leader. Used in PostgreSQL, MySQL, MongoDB, Kafka, and many others."
+      "back": "In **leader-based replication**:\n1. One replica is designated the **leader** — all writes go to the leader first\n2. **Followers** receive a replication log or change stream from the leader and apply writes in the same order\n3. Reads can go to either the leader or any follower, but writes are only accepted by the leader\n\nUsed in `PostgreSQL`, `MySQL`, `MongoDB`, `Kafka`, and many others."
     },
     {
       "id": "rep-003",
@@ -48,7 +48,7 @@
         "durability"
       ],
       "front": "What is the difference between synchronous and asynchronous replication?",
-      "back": "Synchronous: the leader waits for the follower to confirm receipt before reporting success to the client. Guarantees up-to-date copy on at least one follower, but if the follower is slow or down, the leader must block all writes. Asynchronous: the leader sends the change and does not wait for a response. Writes are faster and the leader can continue if followers fall behind, but writes may be lost if the leader fails before replication. Most systems use semi-synchronous: one follower synchronous, the rest asynchronous."
+      "back": "**Synchronous** — the leader waits for the follower to confirm receipt before reporting success to the client.\n   - Guarantees an up-to-date copy on at least one follower\n   - If the follower is slow or down, the leader must block all writes\n\n**Asynchronous** — the leader sends the change and does not wait for a response.\n   - Writes are faster and the leader can continue if followers fall behind\n   - Writes may be lost if the leader fails before replication completes\n\n**Semi-synchronous** (most real systems) — one follower is synchronous, the rest are asynchronous."
     },
     {
       "id": "rep-004",
@@ -62,7 +62,7 @@
         "stale-reads"
       ],
       "front": "What is replication lag, and what is eventual consistency?",
-      "back": "Replication lag is the delay between a write being applied on the leader and being reflected on a follower. When reading from an asynchronous follower, you may see outdated data if the follower has fallen behind. This inconsistency is temporary — if writes stop, followers eventually catch up. This property is called eventual consistency: given enough time without new writes, all replicas converge to the same state. In normal operation lag is milliseconds; under load it can grow to seconds or minutes."
+      "back": "**Replication lag** is the delay between a write being applied on the leader and being reflected on a follower.\n\nWhen reading from an asynchronous follower, you may see outdated (stale) data if the follower has fallen behind. This inconsistency is temporary — if writes stop, followers eventually catch up.\n\n**Eventual consistency** — given enough time without new writes, all replicas converge to the same state.\n   - In normal operation, lag is milliseconds\n   - Under heavy load, lag can grow to seconds or minutes"
     },
     {
       "id": "rep-005",
@@ -76,7 +76,7 @@
         "split-brain"
       ],
       "front": "Walk through the automatic failover process when a leader fails in leader-based replication.",
-      "back": "1. Detect leader failure: nodes use a timeout (e.g., 30 seconds without response) — no foolproof detection exists. 2. Elect new leader: either by election (majority vote) or appointment by a controller node; best candidate is the replica with the most up-to-date data. 3. Reconfigure clients to send writes to the new leader; old leader must become a follower when it returns. Key failure modes: (a) unreplicated writes from old leader may be lost or conflict, (b) split brain — two nodes both believe they are leader (dangerous: data corruption). Some systems use STONITH (Shoot The Other Node In The Head) fencing as a safeguard."
+      "back": "1. **Detect leader failure** — nodes use a timeout (e.g. 30s without response). No foolproof method exists; the node may be slow, not dead.\n2. **Elect a new leader** — by majority vote or a controller node. Best candidate is the replica with the most up-to-date data.\n3. **Reconfigure clients** — redirect writes to the new leader. Old leader must accept follower role when it recovers.\n\n**Key failure modes:**\n- Unreplicated writes from the old leader may be lost or conflict with new writes\n- Split brain — two nodes both believe they are leader (risk: data corruption)\n\nSome systems use **STONITH** (Shoot The Other Node In The Head) fencing to force-kill the old leader and prevent split brain."
     },
     {
       "id": "rep-006",
@@ -91,7 +91,7 @@
         "CDC"
       ],
       "front": "What are the four main approaches to implementing replication logs, and what are the key trade-offs?",
-      "back": "1. Statement-based: leader forwards every SQL statement (INSERT/UPDATE/DELETE) to followers. Problem: non-deterministic functions (NOW(), RAND()), autoincrement, side effects can produce different results on replicas. 2. WAL shipping: sends the exact write-ahead log bytes to followers. Problem: tightly coupled to storage engine format — version mismatches between leader and followers are not possible. 3. Logical (row-based) log: a separate log describing row-level changes (inserted/deleted/updated rows). Decoupled from storage engine — allows version mismatches and is easier to parse externally (basis for CDC). 4. Trigger-based: application-level replication via triggers/stored procedures. Most flexible but highest overhead and most bug-prone."
+      "back": "1. **Statement-based** — leader forwards every SQL statement (`INSERT`/`UPDATE`/`DELETE`) to followers.\n   - Problem: non-deterministic functions (`NOW()`, `RAND()`), autoincrement, and side effects can produce different results on each replica\n\n2. **WAL shipping** — sends the exact write-ahead log bytes to followers.\n   - Problem: tightly coupled to storage engine format — version mismatches between leader and followers are not tolerable\n\n3. **Logical (row-based) log** — a separate log describing row-level changes (inserted/deleted/updated rows).\n   - Decoupled from storage engine → allows version mismatches and is easier to parse externally\n   - Basis for **CDC** (Change Data Capture)\n\n4. **Trigger-based** — application-level replication via triggers/stored procedures.\n   - Most flexible, but highest overhead and most bug-prone"
     },
     {
       "id": "rep-007",
@@ -105,7 +105,7 @@
         "consistent-prefix"
       ],
       "front": "Describe the three replication lag consistency guarantees: read-after-write, monotonic reads, and consistent prefix reads.",
-      "back": "1. Read-after-write (read-your-writes): guarantees that a user who just submitted data will always see their own update when they read. Implementation: read from the leader for data the user may have modified; or track the user's last write timestamp and route reads to replicas that have caught up to that timestamp. 2. Monotonic reads: if a user makes multiple reads in sequence, they will never see an older state after seeing a newer one (reads don't go backward in time). Implementation: always route a given user's reads to the same replica (e.g., hash of user ID). 3. Consistent prefix reads: if writes happen in a certain order, reads must see them in that order. Prevents causality violations (seeing the answer before the question). Challenge in partitioned databases where partitions operate independently."
+      "back": "1. **Read-after-write** (read-your-writes) — guarantees a user always sees their own submitted update.\n   - Implementation: read from the leader for data the user may have modified; or track the user's last write timestamp and route reads to replicas caught up to that timestamp\n\n2. **Monotonic reads** — a user's reads never go backward in time (never see an older state after a newer one).\n   - Implementation: always route a given user's reads to the same replica (e.g., hash of user ID)\n\n3. **Consistent prefix reads** — if writes happen in a certain order, any reader sees them in that order.\n   - Prevents causality violations (seeing an answer before the question)\n   - Challenge in partitioned databases where partitions operate independently"
     },
     {
       "id": "rep-008",
@@ -120,7 +120,7 @@
         "CRDT"
       ],
       "front": "How does multi-leader replication work, and what are the main write conflict resolution strategies?",
-      "back": "Multi-leader (active-active/master-master): multiple nodes accept writes; each leader replicates its changes to all other leaders. Main use cases: multi-datacenter deployments (leader in each DC reduces inter-datacenter latency), offline clients (each device acts as a leader). Core problem: the same data can be concurrently modified in different DCs — conflicts must be resolved. Resolution strategies: (1) Last Write Wins (LWW) by timestamp — dangerously prone to data loss due to clock skew; (2) replica ID precedence — also loses data; (3) merge values together; (4) record conflicts in explicit data structure and resolve later (application code). Advanced: CRDTs (conflict-free replicated data types) auto-resolve in a mathematically consistent way; Operational Transformation (used in Google Docs)."
+      "back": "**Multi-leader** (active-active/master-master) — multiple nodes accept writes; each leader replicates its changes to all other leaders.\n\n**Main use cases:**\n   - Multi-datacenter deployments (one leader per DC reduces inter-DC write latency)\n   - Offline clients (each device acts as a leader)\n\n**Core problem:** the same data can be concurrently modified in different DCs — conflicts must be resolved.\n\n**Conflict resolution strategies:**\n1. **Last Write Wins (LWW)** by timestamp — dangerously prone to data loss due to clock skew\n2. **Replica ID precedence** — also loses data\n3. **Merge values** together\n4. **Record conflicts** in an explicit data structure and resolve later (application code)\n\n**Advanced:** `CRDT`s (conflict-free replicated data types) auto-resolve mathematically; Operational Transformation (used in Google Docs)."
     },
     {
       "id": "rep-009",
@@ -135,7 +135,7 @@
         "n-w-r"
       ],
       "front": "How does leaderless (Dynamo-style) replication work? Explain quorums and the w + r > n condition.",
-      "back": "Leaderless: clients send writes to multiple replicas in parallel (or via a coordinator); any replica can accept writes; no failover concept. Used in Amazon Dynamo, Cassandra, Riak, Voldemort. Quorum reads/writes: with n replicas, require w write acknowledgments and r read responses. If w + r > n, at least one node in any read set must have the latest write. Example: n=3, w=2, r=2 → tolerates 1 unavailable node; n=5, w=3, r=3 → tolerates 2. Stale-value repair: (1) Read repair — on a read, compare versions from r replicas, write newer value back to stale ones; (2) Anti-entropy — background process that continuously copies missing data between replicas. Sloppy quorum: if designated n nodes are unreachable, write to other available nodes instead (hinted handoff), trading strict consistency for higher availability."
+      "back": "**Leaderless** — clients send writes to multiple replicas in parallel (or via a coordinator); any replica can accept writes; no failover concept. Used in `Amazon Dynamo`, `Cassandra`, `Riak`, `Voldemort`.\n\n**Quorum reads/writes:** with `n` replicas, require `w` write acknowledgments and `r` read responses. If `w + r > n`, at least one node in any read set must have the latest write.\n   - Example: `n=3, w=2, r=2` → tolerates 1 unavailable node\n   - Example: `n=5, w=3, r=3` → tolerates 2 unavailable nodes\n\n**Stale-value repair:**\n1. **Read repair** — on a read, compare versions from `r` replicas; write newer value back to stale ones\n2. **Anti-entropy** — background process that continuously copies missing data between replicas\n\n**Sloppy quorum** — if designated `n` nodes are unreachable, write to other available nodes instead (hinted handoff), trading strict consistency for higher availability."
     },
     {
       "id": "rep-010",
@@ -149,7 +149,7 @@
         "availability"
       ],
       "front": "What are the trade-offs between synchronous and asynchronous replication? When would you choose each?",
-      "back": "Synchronous: strong durability guarantee — confirmed write is on ≥2 nodes. But: any single synchronous follower outage blocks all writes; latency increases because writes must wait for follower ACK. Choose when: data loss is unacceptable (financial transactions, legal records). Asynchronous: leader continues processing writes even if all followers fall behind. Write latency is lower. But: if leader fails before replicating, confirmed writes can be lost — durability guarantee is weakened. Choose when: write throughput and availability matter more than zero data loss (e.g., analytics ingestion, social media). Semi-synchronous (most real systems): one follower is synchronous, rest are async — at least two copies always up-to-date, writes don't wait for all followers."
+      "back": "**Synchronous** — strong durability guarantee: a confirmed write is on ≥2 nodes.\n   - Any single synchronous follower outage blocks all writes\n   - Write latency increases (must wait for follower ACK)\n   - Choose when: data loss is unacceptable (financial transactions, legal records)\n\n**Asynchronous** — leader continues processing writes even if all followers fall behind.\n   - Lower write latency\n   - If leader fails before replicating, confirmed writes can be lost\n   - Choose when: write throughput and availability matter more than zero data loss (e.g., analytics ingestion, social media)\n\n**Semi-synchronous** (most real systems) — one follower is synchronous, rest are async.\n   - At least two copies always up-to-date\n   - Writes don't wait for all followers"
     },
     {
       "id": "rep-011",
@@ -164,7 +164,7 @@
         "conflict"
       ],
       "front": "Compare single-leader vs. multi-leader replication in a multi-datacenter deployment.",
-      "back": "Single-leader multi-datacenter: all writes must cross the internet to the leader's DC — adds significant write latency; inter-DC link is a bottleneck; if leader DC fails, failover is required. Multi-leader multi-datacenter: each DC has its own leader; writes are processed locally and asynchronously replicated to other DCs — inter-DC network delay hidden from users. DC failure handled independently; better performance and availability. But: write conflicts possible (same data modified concurrently in two DCs); conflict resolution is complex and error-prone; multi-leader is 'dangerous territory' in many databases with subtle bugs (autoincrement, triggers, integrity constraints). Rule of thumb: avoid multi-leader unless single-leader performance in a multi-DC setup is demonstrably insufficient."
+      "back": "**Single-leader multi-datacenter:**\n   - All writes must cross the internet to the leader's DC — adds significant write latency\n   - Inter-DC link is a bottleneck\n   - If the leader's DC fails, failover is required\n\n**Multi-leader multi-datacenter:**\n   - Each DC has its own leader; writes processed locally and asynchronously replicated to other DCs\n   - Inter-DC network delay is hidden from users\n   - DC failures handled independently — better performance and availability\n   - Write conflicts possible (same data modified concurrently in two DCs)\n   - Conflict resolution is complex and error-prone\n   - Known subtle bugs with autoincrement IDs, triggers, and integrity constraints\n\n**Rule of thumb:** avoid multi-leader unless single-leader performance in a multi-DC setup is demonstrably insufficient."
     },
     {
       "id": "rep-012",
@@ -179,7 +179,7 @@
         "linearizability"
       ],
       "front": "Even with w + r > n, can quorum reads always return the most recent write? What are the edge cases?",
-      "back": "No — despite w + r > n, stale values can still be returned in several scenarios: (1) Sloppy quorum: writes go to non-designated nodes, breaking the overlap guarantee; (2) Concurrent writes: if two writes race, winner determined by LWW timestamp — susceptible to clock skew causing data loss; (3) Write partially replicated: a write succeeds on some replicas but fails on others (e.g., disk full) and is not rolled back; (4) Node failure restores old data: a node with new data fails and recovers from a replica with old data, dropping below w copies of the new value. Conclusion: Dynamo-style databases are optimized for eventual consistency; they do NOT generally provide strong guarantees like read-your-writes or monotonic reads from quorum reads alone. Stronger guarantees require transactions or consensus."
+      "back": "No — despite `w + r > n`, stale values can still be returned in several scenarios:\n1. **Sloppy quorum** — writes go to non-designated nodes, breaking the overlap guarantee\n2. **Concurrent writes** — if two writes race, the winner is determined by LWW timestamp, which is susceptible to clock skew causing data loss\n3. **Partially replicated write** — a write succeeds on some replicas but fails on others (e.g., disk full) and is not rolled back\n4. **Node recovery from stale replica** — a node with new data fails and recovers from a replica with old data, dropping below `w` copies of the new value\n\n**Conclusion:** Dynamo-style databases are optimized for eventual consistency. They do NOT generally provide strong guarantees like read-your-writes or monotonic reads from quorum reads alone. Stronger guarantees require transactions or consensus."
     },
     {
       "id": "rep-013",
@@ -193,7 +193,7 @@
         "failover"
       ],
       "front": "A 5-node leader-follower MySQL cluster uses asynchronous replication. The leader crashes after committing 100 writes not yet replicated. A follower is promoted. What are the risks and how would you mitigate them?",
-      "back": "Risks: (1) Data loss: the 100 unreplicated writes are permanently lost since asynchronous replication doesn't guarantee durability. (2) Primary key reuse: if the old leader used autoincrement IDs for those 100 rows, the new leader may reissue the same IDs — causing collisions in external systems (e.g., cache, event store) referencing those IDs. (3) Split brain: if the old leader recovers and thinks it's still primary, you have two leaders accepting writes — data corruption. Mitigations: (1) Use semi-synchronous replication (at least one synchronous follower) for critical data. (2) Implement STONITH/fencing to forcibly prevent old leader from accepting writes. (3) Use monotonically increasing epoch/term numbers (like Raft) to distinguish old vs. new leader. (4) Design application to handle idempotency and eventual re-sync rather than assuming zero loss."
+      "back": "**Risks:**\n1. **Data loss** — the 100 unreplicated writes are permanently lost; asynchronous replication does not guarantee durability\n2. **Primary key reuse** — if the old leader used autoincrement IDs for those 100 rows, the new leader may reissue the same IDs, causing collisions in external systems (e.g., cache, event store) that reference those IDs\n3. **Split brain** — if the old leader recovers and thinks it's still primary, two leaders accept writes simultaneously, causing data corruption\n\n**Mitigations:**\n1. Use **semi-synchronous replication** (at least one synchronous follower) for critical data\n2. Implement **STONITH/fencing** to forcibly prevent the old leader from accepting writes\n3. Use monotonically increasing **epoch/term numbers** (like Raft) to distinguish old vs. new leader\n4. Design the application to handle **idempotency** and eventual re-sync rather than assuming zero data loss"
     },
     {
       "id": "rep-014",
@@ -208,7 +208,7 @@
         "design"
       ],
       "front": "You are designing a Cassandra cluster (leaderless) for a banking ledger. A colleague suggests n=3, w=1, r=1 for maximum performance. What's wrong with this, and what would you recommend?",
-      "back": "Problem with w=1, r=1: w + r = 2, which is NOT > n=3. This means a read and a write can go to entirely different nodes with zero overlap — stale reads guaranteed. Even worse for banking: a deposit (write) could be confirmed but not seen by a subsequent balance check (read). Recommendation for banking ledger: (1) Quorum: n=3, w=2, r=2 (w + r = 4 > 3) ensures at least one overlapping node; tolerates 1 node failure for both reads and writes. (2) Or strong consistency: w=3, r=1 — all writes to all nodes, fast reads; any node failure stops writes. (3) Consider that Cassandra's LWW conflict resolution and lack of multi-row transactions may fundamentally make it unsuitable for a banking ledger regardless of quorum settings — a database with ACID transactions (PostgreSQL, CockroachDB) may be more appropriate. Leaderless is generally optimized for use cases tolerating eventual consistency."
+      "back": "**Problem with `w=1, r=1`:** `w + r = 2`, which is NOT `> n=3`. A read and a write can go to entirely different nodes with zero overlap — stale reads are guaranteed. Even worse for banking: a deposit (write) could be confirmed but not seen by a subsequent balance check (read).\n\n**Recommendation for a banking ledger:**\n1. **Quorum:** `n=3, w=2, r=2` (`w + r = 4 > 3`) ensures at least one overlapping node; tolerates 1 node failure for both reads and writes\n2. **Strong consistency:** `w=3, r=1` — all writes go to all nodes, reads are fast; any single node failure stops writes\n3. Consider that `Cassandra`'s LWW conflict resolution and lack of multi-row transactions may make it fundamentally unsuitable for a banking ledger regardless of quorum settings — a database with ACID transactions (`PostgreSQL`, `CockroachDB`) may be more appropriate\n\nLeaderless is generally optimized for use cases tolerating eventual consistency."
     },
     {
       "id": "rep-015",
@@ -222,7 +222,7 @@
         "fencing"
       ],
       "front": "What is a split-brain scenario in leader-based replication, and why is it so dangerous? How do systems defend against it?",
-      "back": "Split brain: two nodes both believe they are the leader simultaneously — typically occurs when a network partition makes the old leader unreachable to followers (who elect a new leader) but the old leader can still accept writes from clients. Danger: both leaders accept writes independently with no conflict resolution; data is permanently inconsistent and may be silently corrupted. Example: GitHub's 2012 incident where MySQL replication lag caused a follower to be promoted while the old leader was still running — user data exposed to wrong accounts due to reused primary keys. Defenses: (1) Fencing tokens: each leadership epoch has a monotonically increasing token; the storage system rejects any write from a leader with a lower-numbered token. (2) STONITH (Shoot The Other Node In The Head): forcibly power off or network-isolate the old leader before promoting a new one. (3) Conservative timeout: wait longer before declaring a leader dead, reducing unnecessary elections. (4) Quorum-based leader election (Raft/Paxos): a new leader can only be elected with majority agreement, making it impossible for an isolated old leader to form a quorum."
+      "back": "**Split brain** — two nodes both believe they are the leader simultaneously. Typically occurs when a network partition makes the old leader unreachable to followers (who elect a new leader), but the old leader can still accept writes from clients.\n\n**Danger:** both leaders accept writes independently with no conflict resolution; data becomes permanently inconsistent and may be silently corrupted.\n\n**Example:** GitHub's 2012 incident — MySQL replication lag caused a follower to be promoted while the old leader was still running. User data was exposed to wrong accounts due to reused primary keys.\n\n**Defenses:**\n1. **Fencing tokens** — each leadership epoch has a monotonically increasing token; the storage system rejects any write from a leader with a lower-numbered token\n2. **STONITH** (Shoot The Other Node In The Head) — forcibly power off or network-isolate the old leader before promoting a new one\n3. **Conservative timeout** — wait longer before declaring a leader dead, reducing unnecessary elections\n4. **Quorum-based leader election** (Raft/Paxos) — a new leader can only be elected with majority agreement, making it impossible for an isolated old leader to form a quorum"
     },
     {
       "id": "rep-016",
@@ -238,7 +238,7 @@
         "causality"
       ],
       "front": "In a multi-leader all-to-all topology, why can messages arrive out of causal order, and how can this be detected?",
-      "back": "Causality violation in all-to-all: Client A inserts a row on leader 1; Client B updates that row on leader 3. Due to differential network speeds, leader 2 may receive the UPDATE before the INSERT — applying an update to a non-existent row. Root cause: there is no global write ordering in multi-leader; attaching wall-clock timestamps is insufficient because clocks across nodes are not perfectly synchronized (as shown in Chapter 8). Detection and ordering: Version vectors (also called vector clocks) track which writes each replica has seen. Each node maintains a vector [v1, v2, ..., vn] where vi is the number of operations seen from replica i. On receiving a write, a node can determine if all causally preceding writes have been applied. Conflict detection and ordering in many real multi-leader systems (e.g., PostgreSQL BDR, MySQL Tungsten Replicator) is poorly implemented or not attempted."
+      "back": "**Causality violation in all-to-all topology:** Client A inserts a row on leader 1; Client B updates that row on leader 3. Due to differential network speeds, leader 2 may receive the `UPDATE` before the `INSERT` — applying an update to a non-existent row.\n\n**Root cause:** there is no global write ordering in multi-leader; attaching wall-clock timestamps is insufficient because clocks across nodes are not perfectly synchronized.\n\n**Detection and ordering — Version vectors (vector clocks):**\n   - Track which writes each replica has seen\n   - Each node maintains a vector `[v1, v2, ..., vn]` where `vi` is the count of operations seen from replica `i`\n   - On receiving a write, a node can determine if all causally preceding writes have been applied\n\n**In practice:** conflict detection and causal ordering in many real multi-leader systems (e.g., `PostgreSQL BDR`, `MySQL Tungsten Replicator`) is poorly implemented or not attempted."
     }
   ],
   "puzzles": [
